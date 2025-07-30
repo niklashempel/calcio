@@ -1,5 +1,5 @@
 from os import path
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from .scraper import fetch_all_clubs_for_post_code
 from . import db
 import sys
@@ -38,10 +38,33 @@ def main(in_file: str) -> None:
         if len(l) == 0:
             continue
 
+        # Check if first element is a Tag and has ul attribute
+        if not l or not isinstance(l[0], Tag):
+            logger.warning(f"Club list element is not a Tag for postal code: {postal_code}")
+            continue
+            
+        ul_element = l[0].find("ul")  # type: ignore[union-attr]
+        if not ul_element or not isinstance(ul_element, Tag):
+            logger.warning(f"UL element not found for postal code: {postal_code}")
+            continue
+
         # Get link and name of every club
-        for club in l[0].ul.find_all("li"):
-            external_id = club.a["href"].split("/")[-1]
-            club_name = club.a.text.strip().split("\n")[0] if club.a.text else None
+        for club in ul_element.find_all("li"):  # type: ignore[union-attr]
+            if not isinstance(club, Tag):
+                continue
+                
+            a_element = club.find("a")
+            if not a_element or not isinstance(a_element, Tag):
+                logger.warning(f"No anchor element found in club item")
+                continue
+                
+            href = a_element.get("href")
+            if not href or not isinstance(href, str):
+                logger.warning(f"No valid href found in anchor element")
+                continue
+                
+            external_id = href.split("/")[-1]
+            club_name = a_element.text.strip().split("\n")[0] if a_element.text else None
             if not club_name:
                 logger.error("Club name is empty for external_id: %s", external_id)
                 continue

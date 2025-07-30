@@ -1,8 +1,9 @@
 import requests
 from bs4 import BeautifulSoup, Tag
+from bs4.element import PageElement, NavigableString
 from datetime import datetime
 import locale
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 
 from .deobfuscator import Deobfuscator
 from .logger import setup_logging, get_logger
@@ -89,26 +90,46 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             logger.warning(f"Invalid match details format: {headline_text}")
             continue
 
-        club_row = rows[i + 3].find_all(
+        club_row_element = rows[i + 3]
+        if not isinstance(club_row_element, Tag):
+            logger.warning(f"Club row at index {i + 3} is not a Tag: {type(club_row_element)}")
+            continue
+            
+        club_row = club_row_element.find_all(
             "td", {"class": "column-club"}
         )  # ['TSV 1860 München', 'FC Bayern München']
         if len(club_row) != 2:
-            logger.warning(f"Invalid clubs: {rows[i + 3].text}")
+            logger.warning(f"Invalid clubs: {club_row_element.text}")
             continue
-        url = club_row[0].find("a")["href"]
-        home = club_row[0].find("div", {"class": "club-name"})
-        away = club_row[1].find("div", {"class": "club-name"})
+            
+        # Check if club_row elements are Tags
+        if not isinstance(club_row[0], Tag) or not isinstance(club_row[1], Tag):
+            logger.warning(f"Club row elements are not Tags")
+            continue
+            
+        url_element = club_row[0].find("a")  # type: ignore[union-attr]
+        if not url_element or not isinstance(url_element, Tag):
+            logger.warning(f"No URL found for match")
+            continue
+        url = url_element["href"]
+        
+        home = club_row[0].find("div", {"class": "club-name"})  # type: ignore[union-attr]
+        away = club_row[1].find("div", {"class": "club-name"})  # type: ignore[union-attr]
         if home == None or away == None:
-            if "spielfrei" in rows[i + 3].text:
+            if "spielfrei" in club_row_element.text:
                 logger.debug(f"Club {home}: spielfrei")
                 continue
-            info = club_row[0].find("span", {"class": "info-text"})
-            if info:
+            info = club_row[0].find("span", {"class": "info-text"})  # type: ignore[union-attr]
+            if info and isinstance(info, Tag):
                 logger.warning(f"Invalid clubs with info: {info.text.strip()}")
                 continue
-            logger.warning(f"Invalid clubs: {rows[i + 3].text.strip()}")
+            logger.warning(f"Invalid clubs: {club_row_element.text.strip()}")
             continue
 
+        if not isinstance(home, Tag) or not isinstance(away, Tag):
+            logger.warning(f"Home or away team elements are not Tags")
+            continue
+            
         home = home.text.strip()
         away = away.text.strip()
 
@@ -118,17 +139,17 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             continue
 
         # Find score in club row
-        score = rows[i + 3].find("td", {"class": "column-score"})
+        score = club_row_element.find("td", {"class": "column-score"})  # type: ignore[union-attr]
         if score is None:
             logger.warning(
                 f"Score not found for match: {home} vs {away} on {date} at {time}"
             )
             continue
-        score_left = score.find("span", {"class": "score-left"})
-        score_right = score.find("span", {"class": "score-right"})
+        score_left = score.find("span", {"class": "score-left"})  # type: ignore[union-attr,attr-defined]
+        score_right = score.find("span", {"class": "score-right"})  # type: ignore[union-attr,attr-defined]
         if score_left is None or score_right is None:
-            reason = score.find("span", {"class": "info-text"})
-            if reason:
+            reason = score.find("span", {"class": "info-text"})  # type: ignore[union-attr,attr-defined]
+            if reason and isinstance(reason, Tag):
                 logger.debug(
                     f"Score parts not found for match: {home} vs {away} on {date} at {time} - Reason: {reason.text.strip()}"
                 )
@@ -145,25 +166,35 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         #     continue
 
         # Find div that starts with 'Spielstätte:'
-        venue = rows[i + 4].find_all("div")
-        if len(venue) == 0:
+        venue_row_element = rows[i + 4]
+        if not isinstance(venue_row_element, Tag):
+            logger.warning(f"Venue row at index {i + 4} is not a Tag: {type(venue_row_element)}")
+            continue
+            
+        venue_divs = venue_row_element.find_all("div")  # type: ignore[union-attr]
+        if len(venue_divs) == 0:
             logger.warning(
-                f"Venue not found: {rows[i + 4].text}{date}{time}{home}{away}{age_group}{league}"
+                f"Venue not found: {venue_row_element.text}{date}{time}{home}{away}{age_group}{league}"
             )
             continue
-        venue = venue[-1]
-        if "Spielstätte:" not in venue.text:
-            if "Schiedsrichter" in venue.text:
+        venue_element = venue_divs[-1]
+        if not isinstance(venue_element, Tag):
+            logger.warning(f"Venue element is not a Tag")
+            continue
+            
+        if "Spielstätte:" not in venue_element.text:
+            if "Schiedsrichter" in venue_element.text:
                 logger.debug(
-                    f"No venue present for: {rows[i + 4].text}{date}{time}{home}{away}{age_group}{league}"
+                    f"No venue present for: {venue_row_element.text}{date}{time}{home}{away}{age_group}{league}"
                 )
                 continue
-            logger.warning(f"Spielstätte not found: {venue.text}")
+            logger.warning(f"Spielstätte not found: {venue_element.text}")
             continue
 
-        venue_split = venue.text.replace("Spielstätte:", "").split("|")
+        venue_text = venue_element.text.replace("Spielstätte:", "") if venue_element.text else ""
+        venue_split = venue_text.split("|")
         if len(venue_split) != 3:
-            logger.warning(f"Invalid venue: {venue.text}")
+            logger.warning(f"Invalid venue: {venue_element.text}")
             continue
 
         name = venue_split[0].strip()
