@@ -2,7 +2,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from fontTools.ttLib import TTFont  # type: ignore[import-untyped]
-from typing import Dict, Optional, List, Any
+from typing import Dict, List, Any
 import logging
 
 

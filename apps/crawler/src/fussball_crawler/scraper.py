@@ -1,9 +1,8 @@
 import requests
 from bs4 import BeautifulSoup, Tag
-from bs4.element import PageElement, NavigableString
 from datetime import datetime
 import locale
-from typing import List, Dict, Any, Optional, Tuple, Union
+from typing import List, Dict, Any, Optional
 
 from .deobfuscator import Deobfuscator
 from .logger import setup_logging, get_logger
