@@ -11,12 +11,13 @@ import json
 setup_logging()
 logger = get_logger(__name__)
 
+
 def get_matches(table: Tag):
     """Extract matches from the fussball.de table"""
     matches = []
     rows = table.find_all("tr")
     current_date = None  # Store the current date for time-only entries
-    
+
     for i in range(0, len(rows) - 1, 4):
         headline_row = rows[i + 1]
         if not isinstance(headline_row, Tag):
@@ -29,7 +30,7 @@ def get_matches(table: Tag):
             logger.warning(f"No headline found in row {i + 1}")
             continue
         headline_text = headline.text.strip()
-        
+
         # Handle different formats
         if " | " in headline_text:
             # Full format with categories: "Fr, 25.07.25 - 19:30 Uhr | Herren | Kreisfreundschaftsspiele"
@@ -38,16 +39,18 @@ def get_matches(table: Tag):
                 datetime_part = main_parts[0].strip()  # "Fr, 25.07.25 - 19:30 Uhr"
                 age_group = main_parts[1].strip()
                 league = main_parts[2].strip()
-                
+
                 # Split datetime part by dash
                 if " - " in datetime_part:
                     date_time_split = datetime_part.split(" - ")
                     date = date_time_split[0].strip()
-                    time = date_time_split[1].strip().replace(" Uhr", "")  # Remove "Uhr" if present
+                    time = (
+                        date_time_split[1].strip().replace(" Uhr", "")
+                    )  # Remove "Uhr" if present
                 else:
                     logger.warning(f"Invalid datetime format: {datetime_part}")
                     continue
-                    
+
                 current_date = date  # Store for subsequent time-only entries
             else:
                 logger.warning(f"Invalid full format: {headline_text}")
@@ -56,7 +59,7 @@ def get_matches(table: Tag):
             # Time-only format: "19:45" - use the stored date
             date = current_date
             time = headline_text.replace(" Uhr", "")  # Remove "Uhr" if present
-            
+
             # For time-only entries, get age_group and league from competition row
             comp_row = rows[i + 2] if i + 2 < len(rows) else None
             if comp_row and isinstance(comp_row, Tag):
@@ -94,9 +97,7 @@ def get_matches(table: Tag):
         url = club_row[0].find("a")["href"]
         home = club_row[0].find("div", {"class": "club-name"})
         away = club_row[1].find("div", {"class": "club-name"})
-        if (
-            home == None or away == None
-        ):
+        if home == None or away == None:
             if "spielfrei" in rows[i + 3].text:
                 logger.debug(f"Club {home}: spielfrei")
                 continue
@@ -118,16 +119,22 @@ def get_matches(table: Tag):
         # Find score in club row
         score = rows[i + 3].find("td", {"class": "column-score"})
         if score is None:
-            logger.warning(f"Score not found for match: {home} vs {away} on {date} at {time}")
+            logger.warning(
+                f"Score not found for match: {home} vs {away} on {date} at {time}"
+            )
             continue
         score_left = score.find("span", {"class": "score-left"})
         score_right = score.find("span", {"class": "score-right"})
         if score_left is None or score_right is None:
             reason = score.find("span", {"class": "info-text"})
             if reason:
-                logger.debug(f"Score parts not found for match: {home} vs {away} on {date} at {time} - Reason: {reason.text.strip()}")
+                logger.debug(
+                    f"Score parts not found for match: {home} vs {away} on {date} at {time} - Reason: {reason.text.strip()}"
+                )
             else:
-                logger.warning(f"Score parts not found for match: {home} vs {away} on {date} at {time}")
+                logger.warning(
+                    f"Score parts not found for match: {home} vs {away} on {date} at {time}"
+                )
             continue
         # try:
         #     score_left = int(score_left.text.strip())
@@ -139,12 +146,16 @@ def get_matches(table: Tag):
         # Find div that starts with 'Spielstätte:'
         venue = rows[i + 4].find_all("div")
         if len(venue) == 0:
-            logger.warning(f"Venue not found: {rows[i + 4].text}{date}{time}{home}{away}{age_group}{league}")
+            logger.warning(
+                f"Venue not found: {rows[i + 4].text}{date}{time}{home}{away}{age_group}{league}"
+            )
             continue
         venue = venue[-1]
         if "Spielstätte:" not in venue.text:
             if "Schiedsrichter" in venue.text:
-                logger.debug(f"No venue present for: {rows[i + 4].text}{date}{time}{home}{away}{age_group}{league}")
+                logger.debug(
+                    f"No venue present for: {rows[i + 4].text}{date}{time}{home}{away}{age_group}{league}"
+                )
                 continue
             logger.warning(f"Spielstätte not found: {venue.text}")
             continue
@@ -188,7 +199,7 @@ def parse_date_time(date, time):
     # Handle different date formats
     try:
         # Try new short format: "Fr, 25.07.25"
-        if len(date.split('.')) == 3 and len(date.split('.')[-1]) == 2:
+        if len(date.split(".")) == 3 and len(date.split(".")[-1]) == 2:
             # Short year format like "Fr, 25.07.25"
             date_format = "%a, %d.%m.%y %H:%M"
             parsed_date = datetime.strptime(date + " " + time, date_format)
@@ -220,82 +231,96 @@ def fetch_club_matches(club_external_id: str, from_date: str, to_date: str):
         + club_external_id
         + "/match-type/-1/max/999/mode/PRINT/show-venues/true#!/"
     )
-    
+
     try:
         r = requests.get(url)
         soup = BeautifulSoup(r.text, "html.parser")
         html_content = de_obfuscate(r)
         soup = BeautifulSoup(html_content, "html.parser")
         table = soup.find("table", {"class": "table table-striped table-full-width"})
-        
+
         if table is None or not isinstance(table, Tag):
             if "Kein Spielbetrieb" in soup.text:
-                logger.debug(f"No matches found for club {club_external_id} - No Spielbetrieb")
+                logger.debug(
+                    f"No matches found for club {club_external_id} - No Spielbetrieb"
+                )
                 return []
             logger.warning(f"No valid table found for club {club_external_id}")
             return []
-        
+
         matches = get_matches(table)
         return matches
-        
+
     except Exception as e:
         logger.error(f"Error fetching matches for club {club_external_id}: {e}")
         return []
+
 
 def fetch_all_clubs_for_post_code(postal_code: str) -> str:
     """Fetch all clubs for a postal code, including load-more results."""
     # Get the initial page
     url = "https://www.fussball.de/suche.verein/-/plz/" + postal_code + "#!/"
     logger.debug("Fetching URL: %s", url)
-    
+
     r = requests.get(url)
     initial_html = r.text
-    
+
     # Parse to check if there's a load-more button
     soup = BeautifulSoup(initial_html, "html.parser")
     load_more_form = soup.find("form", {"data-ajax-resource": True})
     if not load_more_form or not isinstance(load_more_form, Tag):
         return initial_html
-    
+
     # Extract AJAX URL and parameters
     ajax_url = load_more_form.get("data-ajax-resource")
     if not ajax_url or not isinstance(ajax_url, str):
         return initial_html
-    
+
     logger.debug("Found load-more for %s, fetching additional results...", postal_code)
-    
+
     # Fetch additional results via AJAX
     all_html = initial_html
     offset = 20
     max_results = 20
-    
+
     while True:
-        ajax_request_url = ajax_url.replace(f"/plz/{postal_code}", f"/plz/{postal_code}/offset/{offset}/max/{max_results}")
-        
+        ajax_request_url = ajax_url.replace(
+            f"/plz/{postal_code}",
+            f"/plz/{postal_code}/offset/{offset}/max/{max_results}",
+        )
+
         try:
-            ajax_response = requests.get(ajax_request_url, headers={
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            })
-            
+            ajax_response = requests.get(
+                ajax_request_url,
+                headers={
+                    "Accept": "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            )
+
             if ajax_response.status_code != 200:
                 break
-                
+
             json_data = ajax_response.json()
-            
+
             # Check if we got more results
-            if 'html' not in json_data or not json_data['html'].strip():
+            if "html" not in json_data or not json_data["html"].strip():
                 break
-                
+
             # Append new results to our HTML
-            additional_html = json_data['html']
-            all_html = all_html.replace('</ul>', additional_html + '</ul>')
-            
+            additional_html = json_data["html"]
+            all_html = all_html.replace("</ul>", additional_html + "</ul>")
+
             offset += max_results
-            logger.debug("Loaded %d more results for %s (offset: %d)", max_results, postal_code, offset)
-            
+            logger.debug(
+                "Loaded %d more results for %s (offset: %d)",
+                max_results,
+                postal_code,
+                offset,
+            )
+
         except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
             logger.warning("Failed to load more results for %s: %s", postal_code, e)
             break
-    
+
     return all_html

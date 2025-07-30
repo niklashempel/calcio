@@ -6,6 +6,7 @@ from . import db
 import sys
 from .logger import setup_logging, get_logger
 
+
 def main(in_file):
 
     # Initialize database
@@ -22,7 +23,9 @@ def main(in_file):
     for postal_code in postal_codes:
         counter += 1
         if counter % 100 == 0:
-            logger.debug("Progress: %d/%d (%s)", counter, len(postal_codes), postal_code)
+            logger.debug(
+                "Progress: %d/%d (%s)", counter, len(postal_codes), postal_code
+            )
 
         # Use the new function that handles load-more
         text = fetch_all_clubs_for_post_code(postal_code)
@@ -43,13 +46,15 @@ def main(in_file):
             db.insert_club(external_id, club_name)
 
     logger.info("Finished processing %d postal codes", len(postal_codes))
-        
+
 
 if __name__ == "__main__":
     setup_logging()
     logger = get_logger(__name__)
     if len(sys.argv) == 1:
-        logger.error("No input file provided. Usage: python3 club_finder.py <input_file>")
+        logger.error(
+            "No input file provided. Usage: python3 club_finder.py <input_file>"
+        )
     else:
         input_file = sys.argv[1]
         main(input_file)

@@ -5,58 +5,70 @@ from .logger import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
 
+
 def init():
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
         )
         cursor = connection.cursor()
-        
+
         # Create clubs table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS clubs (
                 id SERIAL PRIMARY KEY, 
                 external_id VARCHAR UNIQUE,
                 name VARCHAR
             )
-        """)
-        
+        """
+        )
+
         # Create venues table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS venues (
                 id SERIAL PRIMARY KEY,
                 address VARCHAR UNIQUE,
                 location GEOMETRY(Point, 4326)
             )
-        """)
-        
+        """
+        )
+
         # Create age_groups table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS age_groups (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR UNIQUE
             )
-        """)
-        
+        """
+        )
+
         # Create competitions table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS competitions (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR UNIQUE
             )
-        """)
-        
+        """
+        )
+
         # Create teams table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS teams (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR,
                 club_id INTEGER REFERENCES clubs(id)
             )
-        """)
-        
+        """
+        )
+
         # Create matches table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS matches (
                 id SERIAL PRIMARY KEY,
                 url VARCHAR,
@@ -67,8 +79,9 @@ def init():
                 age_group_id INTEGER REFERENCES age_groups(id),
                 competition_id INTEGER REFERENCES competitions(id)
             )
-        """)
-        
+        """
+        )
+
         connection.commit()
         logger.debug("All tables created successfully")
     except (Exception, psycopg2.Error) as error:
@@ -77,6 +90,7 @@ def init():
         if connection:
             cursor.close()
             connection.close()
+
 
 def insert_club(external_id: str, name):
     try:
@@ -87,7 +101,7 @@ def insert_club(external_id: str, name):
         cursor = connection.cursor()
         cursor.execute(
             "INSERT INTO clubs (external_id, name) VALUES (%s, %s) ON CONFLICT (external_id) DO NOTHING",
-            (external_id, name)
+            (external_id, name),
         )
 
         connection.commit()
@@ -99,6 +113,7 @@ def insert_club(external_id: str, name):
             cursor.close()
             connection.close()
 
+
 def insert_venue(address: str, coordinates: Optional[tuple] = None):
     try:
         connection = psycopg2.connect(
@@ -106,18 +121,18 @@ def insert_venue(address: str, coordinates: Optional[tuple] = None):
         )
 
         cursor = connection.cursor()
-        
+
         if coordinates:
             cursor.execute(
                 """INSERT INTO venues (address, location) 
                    VALUES (%s, ST_GeomFromText('POINT(%s %s)', 4326)) 
                    ON CONFLICT (address) DO NOTHING""",
-                (address, coordinates[1], coordinates[0])
+                (address, coordinates[1], coordinates[0]),
             )
         else:
             cursor.execute(
                 "INSERT INTO venues (address) VALUES (%s) ON CONFLICT (address) DO NOTHING",
-                (address,)
+                (address,),
             )
 
         connection.commit()
@@ -128,6 +143,7 @@ def insert_venue(address: str, coordinates: Optional[tuple] = None):
         if connection:
             cursor.close()
             connection.close()
+
 
 def get_club_id_by_external_id(external_id: str):
     try:
@@ -148,6 +164,7 @@ def get_club_id_by_external_id(external_id: str):
             cursor.close()
             connection.close()
 
+
 def get_age_group_id_by_name(name: str):
     try:
         connection = psycopg2.connect(
@@ -166,6 +183,7 @@ def get_age_group_id_by_name(name: str):
         if connection:
             cursor.close()
             connection.close()
+
 
 def get_competition_id_by_name(name: str):
     try:
@@ -186,6 +204,7 @@ def get_competition_id_by_name(name: str):
             cursor.close()
             connection.close()
 
+
 def insert_age_group(name: str):
     try:
         connection = psycopg2.connect(
@@ -195,7 +214,7 @@ def insert_age_group(name: str):
         cursor = connection.cursor()
         cursor.execute(
             "INSERT INTO age_groups (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
-            (name,)
+            (name,),
         )
 
         connection.commit()
@@ -207,6 +226,7 @@ def insert_age_group(name: str):
             cursor.close()
             connection.close()
 
+
 def insert_competition(name: str):
     try:
         connection = psycopg2.connect(
@@ -216,7 +236,7 @@ def insert_competition(name: str):
         cursor = connection.cursor()
         cursor.execute(
             "INSERT INTO competitions (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
-            (name,)
+            (name,),
         )
 
         connection.commit()
@@ -228,6 +248,7 @@ def insert_competition(name: str):
             cursor.close()
             connection.close()
 
+
 def insert_team(name: str, club_id: int):
     try:
         connection = psycopg2.connect(
@@ -236,8 +257,7 @@ def insert_team(name: str, club_id: int):
 
         cursor = connection.cursor()
         cursor.execute(
-            "INSERT INTO teams (name, club_id) VALUES (%s, %s)",
-            (name, club_id)
+            "INSERT INTO teams (name, club_id) VALUES (%s, %s)", (name, club_id)
         )
 
         connection.commit()
@@ -249,6 +269,7 @@ def insert_team(name: str, club_id: int):
             cursor.close()
             connection.close()
 
+
 def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
     """Find existing team or create new one. Returns team_id or None"""
     try:
@@ -256,29 +277,34 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
             user="user", password="password", host="127.0.0.1", database="db"
         )
         cursor = connection.cursor()
-        
+
         # First try to find existing team by name
         cursor.execute("SELECT id FROM teams WHERE name = %s", (team_name,))
         result = cursor.fetchone()
-        
+
         if result:
             return result[0]
-        
+
         # If not found and we have a club_external_id, create the team
         if club_external_id:
             club_id = get_club_id_by_external_id(club_external_id)
             if club_id:
                 insert_team(team_name, club_id)
-                cursor.execute("SELECT id FROM teams WHERE name = %s AND club_id = %s", (team_name, club_id))
+                cursor.execute(
+                    "SELECT id FROM teams WHERE name = %s AND club_id = %s",
+                    (team_name, club_id),
+                )
                 result = cursor.fetchone()
                 return result[0] if result else None
-        
+
         # Create team without club association (club_id = NULL)
-        cursor.execute("INSERT INTO teams (name) VALUES (%s) RETURNING id", (team_name,))
+        cursor.execute(
+            "INSERT INTO teams (name) VALUES (%s) RETURNING id", (team_name,)
+        )
         result = cursor.fetchone()
         connection.commit()
         return result[0] if result else None
-        
+
     except Exception as error:
         logger.debug(f"Error finding/creating team {team_name}: {error}")
         return None
@@ -287,8 +313,16 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
             cursor.close()
             connection.close()
 
-def insert_match(url: str, time, home_team_id: int, away_team_id: int, 
-                venue_id: int, age_group_id: int, competition_id: int):
+
+def insert_match(
+    url: str,
+    time,
+    home_team_id: int,
+    away_team_id: int,
+    venue_id: int,
+    age_group_id: int,
+    competition_id: int,
+):
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -299,7 +333,15 @@ def insert_match(url: str, time, home_team_id: int, away_team_id: int,
             """INSERT INTO matches (url, time, home_team_id, away_team_id, 
                venue_id, age_group_id, competition_id) 
                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (url, time, home_team_id, away_team_id, venue_id, age_group_id, competition_id)
+            (
+                url,
+                time,
+                home_team_id,
+                away_team_id,
+                venue_id,
+                age_group_id,
+                competition_id,
+            ),
         )
 
         connection.commit()
@@ -310,6 +352,7 @@ def insert_match(url: str, time, home_team_id: int, away_team_id: int,
         if connection:
             cursor.close()
             connection.close()
+
 
 def get_clubs():
     try:
@@ -329,6 +372,7 @@ def get_clubs():
             cursor.close()
             connection.close()
 
+
 def find_venue_location(address: str):
     try:
         connection = psycopg2.connect(
@@ -347,6 +391,7 @@ def find_venue_location(address: str):
         if connection:
             cursor.close()
             connection.close()
+
 
 def get_venue_id_by_address(address: str):
     try:
