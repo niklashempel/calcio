@@ -2,7 +2,7 @@ import logging
 import os
 
 
-def setup_logging():
+def setup_logging() -> logging.Logger:
     """Configure logging for the entire application"""
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     log_file = os.getenv("LOG_FILE", None)
@@ -35,6 +35,6 @@ def setup_logging():
     return logging.getLogger(__name__)
 
 
-def get_logger(name):
+def get_logger(name: str) -> logging.Logger:
     """Get a logger instance with the configured settings"""
     return logging.getLogger(name)

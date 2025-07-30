@@ -1,12 +1,12 @@
 import psycopg2
-from typing import Optional
+from typing import Optional, List, Tuple, Any, cast
 from .logger import setup_logging, get_logger
 
 setup_logging()
 logger = get_logger(__name__)
 
 
-def init():
+def init() -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -92,7 +92,7 @@ def init():
             connection.close()
 
 
-def insert_club(external_id: str, name):
+def insert_club(external_id: str, name: str) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -114,7 +114,7 @@ def insert_club(external_id: str, name):
             connection.close()
 
 
-def insert_venue(address: str, coordinates: Optional[tuple] = None):
+def insert_venue(address: str, coordinates: Optional[tuple] = None) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -145,7 +145,7 @@ def insert_venue(address: str, coordinates: Optional[tuple] = None):
             connection.close()
 
 
-def get_club_id_by_external_id(external_id: str):
+def get_club_id_by_external_id(external_id: str) -> Optional[int]:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -155,7 +155,7 @@ def get_club_id_by_external_id(external_id: str):
         cursor.execute("SELECT id FROM clubs WHERE external_id = %s", (external_id,))
 
         result = cursor.fetchone()
-        return result[0] if result else None
+        return cast(int, result[0]) if result else None
     except (Exception, psycopg2.Error) as error:
         logger.error("Error fetching club ID: %s", error)
         return None
@@ -165,7 +165,7 @@ def get_club_id_by_external_id(external_id: str):
             connection.close()
 
 
-def get_age_group_id_by_name(name: str):
+def get_age_group_id_by_name(name: str) -> Optional[int]:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -175,7 +175,7 @@ def get_age_group_id_by_name(name: str):
         cursor.execute("SELECT id FROM age_groups WHERE name = %s", (name,))
 
         result = cursor.fetchone()
-        return result[0] if result else None
+        return cast(int, result[0]) if result else None
     except (Exception, psycopg2.Error) as error:
         logger.error("Error fetching age group ID: %s", error)
         return None
@@ -185,7 +185,7 @@ def get_age_group_id_by_name(name: str):
             connection.close()
 
 
-def get_competition_id_by_name(name: str):
+def get_competition_id_by_name(name: str) -> Optional[int]:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -195,7 +195,7 @@ def get_competition_id_by_name(name: str):
         cursor.execute("SELECT id FROM competitions WHERE name = %s", (name,))
 
         result = cursor.fetchone()
-        return result[0] if result else None
+        return cast(int, result[0]) if result else None
     except (Exception, psycopg2.Error) as error:
         logger.error("Error fetching competition ID", error)
         return None
@@ -205,7 +205,7 @@ def get_competition_id_by_name(name: str):
             connection.close()
 
 
-def insert_age_group(name: str):
+def insert_age_group(name: str) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -227,7 +227,7 @@ def insert_age_group(name: str):
             connection.close()
 
 
-def insert_competition(name: str):
+def insert_competition(name: str) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -249,7 +249,7 @@ def insert_competition(name: str):
             connection.close()
 
 
-def insert_team(name: str, club_id: int):
+def insert_team(name: str, club_id: int) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -270,7 +270,7 @@ def insert_team(name: str, club_id: int):
             connection.close()
 
 
-def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
+def find_or_create_team(team_name: str, club_external_id: Optional[str] = None) -> Optional[int]:
     """Find existing team or create new one. Returns team_id or None"""
     try:
         connection = psycopg2.connect(
@@ -283,7 +283,7 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
         result = cursor.fetchone()
 
         if result:
-            return result[0]
+            return cast(int, result[0])
 
         # If not found and we have a club_external_id, create the team
         if club_external_id:
@@ -295,7 +295,7 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
                     (team_name, club_id),
                 )
                 result = cursor.fetchone()
-                return result[0] if result else None
+                return cast(int, result[0]) if result else None
 
         # Create team without club association (club_id = NULL)
         cursor.execute(
@@ -303,7 +303,7 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
         )
         result = cursor.fetchone()
         connection.commit()
-        return result[0] if result else None
+        return cast(int, result[0]) if result else None
 
     except Exception as error:
         logger.debug(f"Error finding/creating team {team_name}: {error}")
@@ -316,13 +316,13 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None):
 
 def insert_match(
     url: str,
-    time,
+    time: Any,
     home_team_id: int,
     away_team_id: int,
     venue_id: int,
     age_group_id: int,
     competition_id: int,
-):
+) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -354,7 +354,7 @@ def insert_match(
             connection.close()
 
 
-def get_clubs():
+def get_clubs() -> List[Tuple[Any, ...]]:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -367,13 +367,14 @@ def get_clubs():
         return clubs
     except (Exception, psycopg2.Error) as error:
         logger.error("Error fetching clubs", error)
+        return []
     finally:
         if connection:
             cursor.close()
             connection.close()
 
 
-def find_venue_location(address: str):
+def find_venue_location(address: str) -> Optional[int]:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -383,7 +384,7 @@ def find_venue_location(address: str):
         cursor.execute("SELECT id FROM venues WHERE address = %s", (address,))
 
         venue_id = cursor.fetchone()
-        return venue_id[0] if venue_id else None
+        return cast(int, venue_id[0]) if venue_id else None
     except (Exception, psycopg2.Error) as error:
         logger.error("Error fetching venue location", error)
         return None
@@ -393,7 +394,7 @@ def find_venue_location(address: str):
             connection.close()
 
 
-def get_venue_id_by_address(address: str):
+def get_venue_id_by_address(address: str) -> Optional[int]:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -403,7 +404,7 @@ def get_venue_id_by_address(address: str):
         cursor.execute("SELECT id FROM venues WHERE address = %s", (address,))
 
         result = cursor.fetchone()
-        return result[0] if result else None
+        return cast(int, result[0]) if result else None
     except (Exception, psycopg2.Error) as error:
         logger.error("Error fetching venue ID", error)
         return None

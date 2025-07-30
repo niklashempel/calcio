@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup, Tag
 from datetime import datetime
 import locale
+from typing import List, Dict, Any, Optional, Tuple
 
 from .deobfuscator import Deobfuscator
 from .logger import setup_logging, get_logger
@@ -12,7 +13,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 
-def get_matches(table: Tag):
+def get_matches(table: Tag) -> List[Dict[str, Any]]:
     """Extract matches from the fussball.de table"""
     matches = []
     rows = table.find_all("tr")
@@ -182,13 +183,13 @@ def get_matches(table: Tag):
     return matches
 
 
-def de_obfuscate(r: requests.Response):
+def de_obfuscate(r: requests.Response) -> str:
     """De-obfuscate all spans with any obfuscation ID using their respective font files"""
     deobfuscator = Deobfuscator()
     return deobfuscator.deobfuscate_html(r.text)
 
 
-def parse_date_time(date, time):
+def parse_date_time(date: str, time: str) -> Optional[datetime]:
     """Parse German date and time format from fussball.de"""
     try:
         locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
@@ -220,7 +221,7 @@ def parse_date_time(date, time):
             return None
 
 
-def fetch_club_matches(club_external_id: str, from_date: str, to_date: str):
+def fetch_club_matches(club_external_id: str, from_date: str, to_date: str) -> List[Dict[str, Any]]:
     """Fetch matches for a specific club from fussball.de"""
     url = (
         "https://www.fussball.de/vereinsspielplan.druck/-/datum-bis/"

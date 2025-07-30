@@ -1,13 +1,15 @@
 from os import path
-import requests
 from bs4 import BeautifulSoup
 from .scraper import fetch_all_clubs_for_post_code
 from . import db
 import sys
 from .logger import setup_logging, get_logger
 
+setup_logging()
+logger = get_logger(__name__)
 
-def main(in_file):
+
+def main(in_file: str) -> None:
 
     # Initialize database
     db.init()

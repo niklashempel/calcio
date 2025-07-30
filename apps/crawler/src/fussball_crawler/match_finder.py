@@ -3,6 +3,7 @@ from . import scraper as fussball_scraper
 from urllib.parse import urlencode, quote
 import requests
 from .logger import setup_logging, get_logger
+from typing import Optional, Tuple
 
 setup_logging()
 logger = get_logger(__name__)
@@ -13,7 +14,7 @@ from_date = "2025-07-25"
 to_date = "2025-08-06"
 
 
-def find_lat_long_online(location: str):
+def find_lat_long_online(location: str) -> Optional[Tuple[float, float]]:
     payload = {"q": location}
     params = urlencode(payload, quote_via=quote)
     r = requests.get("http://localhost:2322/api", params=params)
@@ -26,7 +27,7 @@ def find_lat_long_online(location: str):
     return (point[1], point[0])
 
 
-def main():
+def main() -> None:
     db.init()
     clubs = db.get_clubs()
     if clubs is None:
