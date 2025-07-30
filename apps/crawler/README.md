@@ -28,6 +28,12 @@ python -m src.fussball_crawler.club_finder data/post_codes.csv
 python -m src.fussball_crawler.match_finder
 ```
 
+Set log level
+
+```bash
+export LOG_LEVEL=DEBUG  # or INFO, WARNING, ERROR, CRITICAL
+```
+
 ## Development
 
 ### Running Tests
