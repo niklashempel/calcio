@@ -78,7 +78,7 @@ def init():
             cursor.close()
             connection.close()
 
-def insert_club(external_id: str, name: Optional[str] = None):
+def insert_club(external_id: str, name):
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"

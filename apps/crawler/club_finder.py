@@ -36,7 +36,10 @@ def main(in_file):
         # Get link and name of every club
         for club in l[0].ul.find_all("li"):
             external_id = club.a["href"].split("/")[-1]
-            club_name = club.a.text.strip() if club.a.text else None
+            club_name = club.a.text.strip().split("\n")[0] if club.a.text else None
+            if not club_name:
+                logger.error("Club name is empty for external_id: %s", external_id)
+                continue
             db.insert_club(external_id, club_name)
 
     logger.info("Finished processing %d postal codes", len(postal_codes))
