@@ -88,15 +88,15 @@ def get_matches(table: Tag, obfuscation_id: str):
 def find_obfuscation_id(soup: BeautifulSoup):
     """Find the obfuscation ID from the fussball.de page"""
     headline = soup.find("tr", {"class": "row-headline visible-small"})
-    if headline == None:
+    if headline is None:
         logger.warning("Headline not found")
         return None
     span = headline.find("span")
-    if span is None or not hasattr(span, 'get'):
+    if span is None or not isinstance(span, Tag):
         logger.warning("Span not found or invalid")
         return None
     obfuscation_id = span.get("data-obfuscation")
-    if obfuscation_id == None:
+    if obfuscation_id is None:
         logger.warning("Obfuscation ID not found")
         return None
     logger.warning(f"Obfuscation ID: {obfuscation_id}")
@@ -217,8 +217,7 @@ def fetch_all_clubs_for_post_code(postal_code: str) -> str:
     # Parse to check if there's a load-more button
     soup = BeautifulSoup(initial_html, "html.parser")
     load_more_form = soup.find("form", {"data-ajax-resource": True})
-    
-    if not load_more_form:
+    if not load_more_form or not isinstance(load_more_form, Tag):
         return initial_html
     
     # Extract AJAX URL and parameters
