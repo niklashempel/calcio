@@ -1,8 +1,8 @@
-import db
-import fussball_scraper
+from . import db
+from . import scraper as fussball_scraper
 from urllib.parse import urlencode, quote
 import requests
-from logger import setup_logging, get_logger
+from .logger import setup_logging, get_logger
 
 setup_logging()
 logger = get_logger(__name__)

@@ -1,6 +1,6 @@
 import psycopg2
 from typing import Optional
-from logger import setup_logging, get_logger
+from .logger import setup_logging, get_logger
 
 setup_logging()
 logger = get_logger(__name__)
