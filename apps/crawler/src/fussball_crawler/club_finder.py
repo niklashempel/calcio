@@ -1,7 +1,7 @@
 from os import path
 from bs4 import BeautifulSoup, Tag
 from .scraper import fetch_all_clubs_for_post_code
-from . import db
+from . import api_client
 import sys
 from .logger import setup_logging, get_logger
 
@@ -10,9 +10,6 @@ logger = get_logger(__name__)
 
 
 def main(in_file: str) -> None:
-
-    # Initialize database
-    db.init()
 
     postal_codes = []
     with open(path.relpath(in_file), "r") as f:
@@ -68,7 +65,7 @@ def main(in_file: str) -> None:
             if not club_name:
                 logger.error("Club name is empty for external_id: %s", external_id)
                 continue
-            db.insert_club(external_id, club_name)
+            api_client.insert_club(external_id, club_name)
 
     logger.info("Finished processing %d postal codes", len(postal_codes))
 

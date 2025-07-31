@@ -1,4 +1,4 @@
-from . import db
+from . import api_client
 from . import scraper as fussball_scraper
 from urllib.parse import urlencode, quote
 import requests
@@ -25,8 +25,8 @@ def find_lat_long_online(location: str) -> Optional[Tuple[float, float]]:
 
 
 def main() -> None:
-    db.init()
-    clubs = db.get_clubs()
+    api_client.init()
+    clubs = api_client.get_clubs()
     if clubs is None:
         logger.info("No clubs found...")
         clubs = []
@@ -50,31 +50,31 @@ def main() -> None:
         matches = fussball_scraper.fetch_club_matches(club[0], from_date, to_date)
 
         for match in matches:
-            venue_id = db.find_venue_location(match["address"])
+            venue_id = api_client.find_venue_location(match["address"])
             if venue_id == None:
                 coordinates = find_lat_long_online(match["address"])
-                db.insert_venue(match["address"], coordinates=coordinates)
-                venue_id = db.get_venue_id_by_address(match["address"])
+                api_client.insert_venue(match["address"], coordinates=coordinates)
+                venue_id = api_client.get_venue_id_by_address(match["address"])
 
-            db.insert_age_group(match["age_group"])
-            age_group_id = db.get_age_group_id_by_name(match["age_group"])
+            api_client.insert_age_group(match["age_group"])
+            age_group_id = api_client.get_age_group_id_by_name(match["age_group"])
 
-            db.insert_competition(match["league"])
-            competition_id = db.get_competition_id_by_name(match["league"])
+            api_client.insert_competition(match["league"])
+            competition_id = api_client.get_competition_id_by_name(match["league"])
 
             # Find or create teams using the new external IDs and URLs
             # For home team: use home_club_id if available, otherwise fallback to current club
             home_club_id = match.get("home_club_id", club[0])
             
             # Check if home club exists, if not, fetch club info from team URL
-            if not db.get_club_id_by_external_id(home_club_id) and match.get("home_team_url"):
+            if not api_client.get_club_id_by_external_id(home_club_id) and match.get("home_team_url"):
                 club_info = fussball_scraper.fetch_club_name_from_team_url(match["home_team_url"])
                 if club_info:
                     # Create the club with the info from the team page
-                    db.insert_club(club_info['club_id'], club_info['club_name'])
+                    api_client.insert_club(club_info['club_id'], club_info['club_name'])
                     home_club_id = club_info['club_id']  # Use the correct club ID
             
-            home_team_id = db.find_or_create_team(
+            home_team_id = api_client.find_or_create_team(
                 match["home"], 
                 home_club_id,
                 match.get("home_team_id")
@@ -84,14 +84,14 @@ def main() -> None:
             away_club_id = match.get("away_club_id", club[0])
             
             # Check if away club exists, if not, fetch club info from team URL
-            if not db.get_club_id_by_external_id(away_club_id) and match.get("away_team_url"):
+            if not api_client.get_club_id_by_external_id(away_club_id) and match.get("away_team_url"):
                 club_info = fussball_scraper.fetch_club_name_from_team_url(match["away_team_url"])
                 if club_info:
                     # Create the club with the info from the team page
-                    db.insert_club(club_info['club_id'], club_info['club_name'])
+                    api_client.insert_club(club_info['club_id'], club_info['club_name'])
                     away_club_id = club_info['club_id']  # Use the correct club ID
             
-            away_team_id = db.find_or_create_team(
+            away_team_id = api_client.find_or_create_team(
                 match["away"], 
                 away_club_id,
                 match.get("away_team_id")
@@ -114,7 +114,7 @@ def main() -> None:
                 age_id: int = age_group_id  # type: ignore
                 comp_id: int = competition_id  # type: ignore
 
-                db.insert_match(
+                api_client.insert_match(
                     match["url"], match["time"], home_id, away_id, v_id, age_id, comp_id
                 )
     logger.info("Finished processing all clubs.")

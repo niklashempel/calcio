@@ -1,0 +1,8 @@
+namespace Api.DTOs;
+
+public class FindOrCreateTeamRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string ClubExternalId { get; set; } = string.Empty;
+    public string? ExternalId { get; set; }
+}
