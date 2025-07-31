@@ -60,6 +60,7 @@ def init() -> None:
             """
             CREATE TABLE IF NOT EXISTS teams (
                 id SERIAL PRIMARY KEY,
+                external_id VARCHAR UNIQUE,
                 name VARCHAR,
                 club_id INTEGER REFERENCES clubs(id)
             )
@@ -165,6 +166,36 @@ def get_club_id_by_external_id(external_id: str) -> Optional[int]:
             connection.close()
 
 
+def find_or_create_club(external_id: str, name: str) -> Optional[int]:
+    """Find existing club or create new one. Returns club_id or None"""
+    try:
+        connection = psycopg2.connect(
+            user="user", password="password", host="127.0.0.1", database="db"
+        )
+        cursor = connection.cursor()
+
+        # First try to find existing club by external_id
+        cursor.execute("SELECT id FROM clubs WHERE external_id = %s", (external_id,))
+        result = cursor.fetchone()
+
+        if result:
+            return cast(int, result[0])
+
+        # If not found, create the club
+        insert_club(external_id, name)
+        cursor.execute("SELECT id FROM clubs WHERE external_id = %s", (external_id,))
+        result = cursor.fetchone()
+        return cast(int, result[0]) if result else None
+
+    except Exception as error:
+        logger.debug(f"Error finding/creating club {name}: {error}")
+        return None
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+
+
 def get_age_group_id_by_name(name: str) -> Optional[int]:
     try:
         connection = psycopg2.connect(
@@ -249,7 +280,7 @@ def insert_competition(name: str) -> None:
             connection.close()
 
 
-def insert_team(name: str, club_id: int) -> None:
+def insert_team(name: str, club_id: int, external_id: Optional[str] = None) -> None:
     try:
         connection = psycopg2.connect(
             user="user", password="password", host="127.0.0.1", database="db"
@@ -257,7 +288,8 @@ def insert_team(name: str, club_id: int) -> None:
 
         cursor = connection.cursor()
         cursor.execute(
-            "INSERT INTO teams (name, club_id) VALUES (%s, %s)", (name, club_id)
+            "INSERT INTO teams (name, club_id, external_id) VALUES (%s, %s, %s)", 
+            (name, club_id, external_id)
         )
 
         connection.commit()
@@ -270,7 +302,7 @@ def insert_team(name: str, club_id: int) -> None:
             connection.close()
 
 
-def find_or_create_team(team_name: str, club_external_id: Optional[str] = None) -> Optional[int]:
+def find_or_create_team(team_name: str, club_external_id: str, team_external_id: Optional[str] = None) -> Optional[int]:
     """Find existing team or create new one. Returns team_id or None"""
     try:
         connection = psycopg2.connect(
@@ -278,32 +310,36 @@ def find_or_create_team(team_name: str, club_external_id: Optional[str] = None) 
         )
         cursor = connection.cursor()
 
-        # First try to find existing team by name
-        cursor.execute("SELECT id FROM teams WHERE name = %s", (team_name,))
-        result = cursor.fetchone()
+        # First try to find existing team by external_id if provided
+        if team_external_id:
+            cursor.execute("SELECT id FROM teams WHERE external_id = %s", (team_external_id,))
+            result = cursor.fetchone()
+            if result:
+                return cast(int, result[0])
 
-        if result:
-            return cast(int, result[0])
+        # Then try to find existing team by name and club
+        club_id = get_club_id_by_external_id(club_external_id)
+        
+        if club_id:
+            cursor.execute(
+                "SELECT id FROM teams WHERE name = %s AND club_id = %s",
+                (team_name, club_id),
+            )
+            result = cursor.fetchone()
+            if result:
+                return cast(int, result[0])
 
-        # If not found and we have a club_external_id, create the team
-        if club_external_id:
-            club_id = get_club_id_by_external_id(club_external_id)
-            if club_id:
-                insert_team(team_name, club_id)
-                cursor.execute(
-                    "SELECT id FROM teams WHERE name = %s AND club_id = %s",
-                    (team_name, club_id),
-                )
-                result = cursor.fetchone()
-                return cast(int, result[0]) if result else None
-
-        # Create team without club association (club_id = NULL)
-        cursor.execute(
-            "INSERT INTO teams (name) VALUES (%s) RETURNING id", (team_name,)
-        )
-        result = cursor.fetchone()
-        connection.commit()
-        return cast(int, result[0]) if result else None
+            # If not found, create the team
+            insert_team(team_name, club_id, team_external_id)
+            cursor.execute(
+                "SELECT id FROM teams WHERE name = %s AND club_id = %s",
+                (team_name, club_id),
+            )
+            result = cursor.fetchone()
+            return cast(int, result[0]) if result else None
+        else:
+            logger.error(f"Club with external_id {club_external_id} not found")
+            return None
 
     except Exception as error:
         logger.debug(f"Error finding/creating team {team_name}: {error}")

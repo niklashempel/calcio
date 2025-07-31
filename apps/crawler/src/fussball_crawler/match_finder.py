@@ -8,11 +8,8 @@ from typing import Optional, Tuple
 setup_logging()
 logger = get_logger(__name__)
 
-DEBUG = False
-
 from_date = "2025-07-25"
 to_date = "2025-08-06"
-
 
 def find_lat_long_online(location: str) -> Optional[Tuple[float, float]]:
     payload = {"q": location}
@@ -40,16 +37,15 @@ def main() -> None:
 
     for club in clubs:
         progress += 1
-        if progress % 100 == 0:
-            logger.info(
-                "Progress: "
-                + str(progress)
-                + "/"
-                + str(len(clubs))
-                + " (progress: "
-                + str(progress / len(clubs) * 100)
-                + "%)"
-            )
+        logger.info(
+            "Progress: "
+            + str(progress)
+            + "/"
+            + str(len(clubs))
+            + " (progress: "
+            + str(progress / len(clubs) * 100)
+            + "%)"
+        )
 
         matches = fussball_scraper.fetch_club_matches(club[0], from_date, to_date)
 
@@ -66,8 +62,40 @@ def main() -> None:
             db.insert_competition(match["league"])
             competition_id = db.get_competition_id_by_name(match["league"])
 
-            home_team_id = db.find_or_create_team(match["home"], club[0])
-            away_team_id = db.find_or_create_team(match["away"])
+            # Find or create teams using the new external IDs and URLs
+            # For home team: use home_club_id if available, otherwise fallback to current club
+            home_club_id = match.get("home_club_id", club[0])
+            
+            # Check if home club exists, if not, fetch club info from team URL
+            if not db.get_club_id_by_external_id(home_club_id) and match.get("home_team_url"):
+                club_info = fussball_scraper.fetch_club_name_from_team_url(match["home_team_url"])
+                if club_info:
+                    # Create the club with the info from the team page
+                    db.insert_club(club_info['club_id'], club_info['club_name'])
+                    home_club_id = club_info['club_id']  # Use the correct club ID
+            
+            home_team_id = db.find_or_create_team(
+                match["home"], 
+                home_club_id,
+                match.get("home_team_id")
+            )
+            
+            # For away team: use away_club_id if available, otherwise fallback to current club
+            away_club_id = match.get("away_club_id", club[0])
+            
+            # Check if away club exists, if not, fetch club info from team URL
+            if not db.get_club_id_by_external_id(away_club_id) and match.get("away_team_url"):
+                club_info = fussball_scraper.fetch_club_name_from_team_url(match["away_team_url"])
+                if club_info:
+                    # Create the club with the info from the team page
+                    db.insert_club(club_info['club_id'], club_info['club_name'])
+                    away_club_id = club_info['club_id']  # Use the correct club ID
+            
+            away_team_id = db.find_or_create_team(
+                match["away"], 
+                away_club_id,
+                match.get("away_team_id")
+            )
 
             # Insert match with proper foreign keys
             if all(

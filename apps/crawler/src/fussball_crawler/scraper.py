@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup, Tag
 from datetime import datetime
 import locale
 from typing import List, Dict, Any, Optional
+import re
 
 from .deobfuscator import Deobfuscator
 from .logger import setup_logging, get_logger
@@ -111,12 +112,20 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             logger.warning(f"No URL found for match")
             continue
         url = url_element["href"]
+
+        # Extract home team data (name, club_id, team_id)
+        home_name_element = club_row[0].find("div", {"class": "club-name"})  # type: ignore[union-attr]
+        home_logo_element = club_row[0].find("span", {"data-responsive-image": True})  # type: ignore[union-attr]
+        home_link_element = club_row[0].find("a")  # type: ignore[union-attr]
         
-        home = club_row[0].find("div", {"class": "club-name"})  # type: ignore[union-attr]
-        away = club_row[1].find("div", {"class": "club-name"})  # type: ignore[union-attr]
-        if home == None or away == None:
+        # Extract away team data (name, club_id, team_id)
+        away_name_element = club_row[1].find("div", {"class": "club-name"})  # type: ignore[union-attr]
+        away_logo_element = club_row[1].find("span", {"data-responsive-image": True})  # type: ignore[union-attr]
+        away_link_element = club_row[1].find("a")  # type: ignore[union-attr]
+        
+        if home_name_element == None or away_name_element == None:
             if "spielfrei" in club_row_element.text:
-                logger.debug(f"Club {home}: spielfrei")
+                logger.debug(f"Club spielfrei")
                 continue
             info = club_row[0].find("span", {"class": "info-text"})  # type: ignore[union-attr]
             if info and isinstance(info, Tag):
@@ -125,12 +134,47 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             logger.warning(f"Invalid clubs: {club_row_element.text.strip()}")
             continue
 
-        if not isinstance(home, Tag) or not isinstance(away, Tag):
+        if not isinstance(home_name_element, Tag) or not isinstance(away_name_element, Tag):
             logger.warning(f"Home or away team elements are not Tags")
             continue
-            
-        home = home.text.strip()
-        away = away.text.strip()
+
+        # Extract names
+        home_name = home_name_element.text.strip()
+        away_name = away_name_element.text.strip()
+        
+        # Extract club IDs from data-responsive-image attribute
+        home_club_id = None
+        away_club_id = None
+        
+        if home_logo_element and isinstance(home_logo_element, Tag):
+            logo_url = home_logo_element.get("data-responsive-image")
+            if logo_url and isinstance(logo_url, str) and "/id/" in logo_url:
+                home_club_id = logo_url.split("/id/")[-1]
+                
+        if away_logo_element and isinstance(away_logo_element, Tag):
+            logo_url = away_logo_element.get("data-responsive-image")
+            if logo_url and isinstance(logo_url, str) and "/id/" in logo_url:
+                away_club_id = logo_url.split("/id/")[-1]
+        
+        # Extract team IDs and URLs from href attribute
+        home_team_id = None
+        away_team_id = None
+        home_team_url = None
+        away_team_url = None
+        
+        if home_link_element and isinstance(home_link_element, Tag):
+            href = home_link_element.get("href")
+            if href and isinstance(href, str):
+                home_team_url = href if href.startswith("http") else f"https://www.fussball.de{href}"
+                if "/team-id/" in href:
+                    home_team_id = href.split("/team-id/")[-1]
+                
+        if away_link_element and isinstance(away_link_element, Tag):
+            href = away_link_element.get("href")
+            if href and isinstance(href, str):
+                away_team_url = href if href.startswith("http") else f"https://www.fussball.de{href}"
+                if "/team-id/" in href:
+                    away_team_id = href.split("/team-id/")[-1]
 
         datetime_obj = parse_date_time(date, time)
         if datetime_obj == None:
@@ -141,7 +185,7 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         score = club_row_element.find("td", {"class": "column-score"})  # type: ignore[union-attr]
         if score is None:
             logger.warning(
-                f"Score not found for match: {home} vs {away} on {date} at {time}"
+                f"Score not found for match: {home_name} vs {away_name} on {date} at {time}"
             )
             continue
         score_left = score.find("span", {"class": "score-left"})  # type: ignore[union-attr,attr-defined]
@@ -150,11 +194,11 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             reason = score.find("span", {"class": "info-text"})  # type: ignore[union-attr,attr-defined]
             if reason and isinstance(reason, Tag):
                 logger.debug(
-                    f"Score parts not found for match: {home} vs {away} on {date} at {time} - Reason: {reason.text.strip()}"
+                    f"Score parts not found for match: {home_name} vs {away_name} on {date} at {time} - Reason: {reason.text.strip()}"
                 )
             else:
                 logger.warning(
-                    f"Score parts not found for match: {home} vs {away} on {date} at {time}"
+                    f"Score parts not found for match: {home_name} vs {away_name} on {date} at {time}"
                 )
             continue
         # try:
@@ -173,7 +217,7 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         venue_divs = venue_row_element.find_all("div")  # type: ignore[union-attr]
         if len(venue_divs) == 0:
             logger.warning(
-                f"Venue not found: {venue_row_element.text}{date}{time}{home}{away}{age_group}{league}"
+                f"Venue not found: {venue_row_element.text}{date}{time}{home_name}{away_name}{age_group}{league}"
             )
             continue
         venue_element = venue_divs[-1]
@@ -184,7 +228,7 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         if "Spielstätte:" not in venue_element.text:
             if "Schiedsrichter" in venue_element.text:
                 logger.debug(
-                    f"No venue present for: {venue_row_element.text}{date}{time}{home}{away}{age_group}{league}"
+                    f"No venue present for: {venue_row_element.text}{date}{time}{home_name}{away_name}{age_group}{league}"
                 )
                 continue
             logger.warning(f"Spielstätte not found: {venue_element.text}")
@@ -202,8 +246,14 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         matches.append(
             {
                 "time": datetime_obj,
-                "home": home,
-                "away": away,
+                "home": home_name,
+                "away": away_name,
+                "home_club_id": home_club_id,
+                "away_club_id": away_club_id,
+                "home_team_id": home_team_id,
+                "away_team_id": away_team_id,
+                "home_team_url": home_team_url,
+                "away_team_url": away_team_url,
                 "age_group": age_group,
                 "league": league,
                 "address": address + ", " + city,
@@ -285,6 +335,42 @@ def fetch_club_matches(club_external_id: str, from_date: str, to_date: str) -> L
     except Exception as e:
         logger.error(f"Error fetching matches for club {club_external_id}: {e}")
         return []
+
+
+def fetch_club_name_from_team_url(team_url: str) -> Optional[Dict[str, str]]:
+    """
+    Fetch club name and ID from a team page by parsing JavaScript variables.
+    Returns dict with 'club_id' and 'club_name' or None if not found.
+    """
+    try:
+        logger.debug(f"Fetching club info from team URL: {team_url}")
+        r = requests.get(team_url)
+        
+        if r.status_code != 200:
+            logger.warning(f"Failed to fetch team page: {team_url} (status: {r.status_code})")
+            return None
+            
+        # Look for the JavaScript variables in the page content
+        # Pattern to match edVereinId='...' and edVereinName='...'
+        club_id_match = re.search(r"edVereinId='([^']+)'", r.text)
+        club_name_match = re.search(r"edVereinName='([^']+)'", r.text)
+        
+        if club_id_match and club_name_match:
+            club_id = club_id_match.group(1)
+            club_name = club_name_match.group(1)
+            
+            logger.debug(f"Found club info: {club_name} (ID: {club_id})")
+            return {
+                'club_id': club_id,
+                'club_name': club_name
+            }
+        else:
+            logger.warning(f"Could not find club information in team page: {team_url}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error fetching club info from team URL {team_url}: {e}")
+        return None
 
 
 def fetch_all_clubs_for_post_code(postal_code: str) -> str:
