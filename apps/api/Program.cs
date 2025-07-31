@@ -84,8 +84,18 @@ app.UseSwaggerUI(c =>
 // Use CORS
 app.UseCors("AllowAll");
 
-// Clubs endpoints
-app.MapGet("/api/clubs", async (CalcioDbContext db) =>
+var api = app.MapGroup("/api").WithTags("API");
+
+// Root endpoint
+app.MapGet("/", () => "Calcio API is running!")
+.WithName("Root")
+.WithSummary("API status")
+.WithDescription("Returns a simple status message")
+.WithTags("Status");
+
+var clubs = api.MapGroup("/clubs").WithTags("Clubs");
+
+clubs.MapGet("/", async (CalcioDbContext db) =>
 {
     var clubs = await db.Clubs.Include(c => c.Teams).ToListAsync();
     return clubs.Select(c => c.ToDto()).ToList();
@@ -93,52 +103,15 @@ app.MapGet("/api/clubs", async (CalcioDbContext db) =>
 .WithName("GetClubs")
 .WithSummary("Get all clubs")
 .WithDescription("Retrieves all football clubs with their associated teams")
-.WithTags("Clubs")
 .Produces<List<ClubDto>>();
 
-app.MapGet("/api/clubs/{id}", async (int id, CalcioDbContext db) =>
-{
-    var club = await db.Clubs.Include(c => c.Teams).FirstOrDefaultAsync(c => c.Id == id);
-    return club is not null ? Results.Ok(club.ToDto()) : Results.NotFound();
-})
-.WithName("GetClubById")
-.WithSummary("Get club by ID")
-.WithDescription("Retrieves a specific club by its ID")
-.WithTags("Clubs")
-.Produces<ClubDto>()
-.Produces(404);
-
-app.MapGet("/api/clubs/external/{externalId}", async (string externalId, CalcioDbContext db) =>
-{
-    var club = await db.Clubs.Include(c => c.Teams).FirstOrDefaultAsync(c => c.ExternalId == externalId);
-    return club is not null ? Results.Ok(club.ToDto()) : Results.NotFound();
-})
-.WithName("GetClubByExternalId")
-.WithSummary("Get club by external ID")
-.WithDescription("Retrieves a specific club by its external ID")
-.WithTags("Clubs")
-.Produces<ClubDto>()
-.Produces(404);
-
-app.MapPost("/api/clubs", async (Club club, CalcioDbContext db) =>
-{
-    db.Clubs.Add(club);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/clubs/{club.Id}", club);
-})
-.WithName("CreateClub")
-.WithSummary("Create a new club")
-.WithDescription("Creates a new football club")
-.WithTags("Clubs")
-.Accepts<Club>("application/json")
-.Produces<Club>(201);
-
-// Find or create club endpoint for crawler
-app.MapPost("/api/clubs/find-or-create", async (FindOrCreateClubRequest request, CalcioDbContext db) =>
+clubs.MapPost("/find-or-create", async (FindOrCreateClubRequest request, CalcioDbContext db) =>
 {
     var existingClub = await db.Clubs.FirstOrDefaultAsync(c => c.ExternalId == request.ExternalId);
     if (existingClub != null)
     {
+        existingClub.Name = request.Name;
+        await db.SaveChangesAsync();
         return Results.Ok(existingClub.ToDto());
     }
 
@@ -148,35 +121,15 @@ app.MapPost("/api/clubs/find-or-create", async (FindOrCreateClubRequest request,
     return Results.Created($"/api/clubs/{newClub.Id}", newClub.ToDto());
 })
 .WithName("FindOrCreateClub")
-.WithSummary("Find existing club or create new one")
-.WithDescription("Finds a club by external ID, or creates a new one if not found")
-.WithTags("Clubs")
+.WithSummary("Find or create club by external ID")
+.WithDescription("Finds existing club by external ID or creates a new one")
 .Accepts<FindOrCreateClubRequest>("application/json")
 .Produces<ClubDto>(201)
 .Produces<ClubDto>(200);
 
-// Teams endpoints
-app.MapGet("/api/teams", async (CalcioDbContext db) =>
-{
-    var teams = await db.Teams.Include(t => t.Club).ToListAsync();
-    return teams.Select(t => t.ToDto()).ToList();
-});
+var teams = api.MapGroup("/teams").WithTags("Teams");
 
-app.MapGet("/api/teams/{id}", async (int id, CalcioDbContext db) =>
-{
-    var team = await db.Teams.Include(t => t.Club).FirstOrDefaultAsync(t => t.Id == id);
-    return team is not null ? Results.Ok(team.ToDto()) : Results.NotFound();
-});
-
-app.MapPost("/api/teams", async (Team team, CalcioDbContext db) =>
-{
-    db.Teams.Add(team);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/teams/{team.Id}", team);
-});
-
-// Find or create team endpoint for crawler
-app.MapPost("/api/teams/find-or-create", async (FindOrCreateTeamRequest request, CalcioDbContext db) =>
+teams.MapPost("/find-or-create", async (FindOrCreateTeamRequest request, CalcioDbContext db) =>
 {
     // First try to find by external ID if provided
     if (!string.IsNullOrEmpty(request.ExternalId))
@@ -185,6 +138,8 @@ app.MapPost("/api/teams/find-or-create", async (FindOrCreateTeamRequest request,
             .FirstOrDefaultAsync(t => t.ExternalId == request.ExternalId);
         if (existingTeam != null)
         {
+            existingTeam.Name = request.Name;
+            await db.SaveChangesAsync();
             return Results.Ok(existingTeam.ToDto());
         }
     }
@@ -201,6 +156,8 @@ app.MapPost("/api/teams/find-or-create", async (FindOrCreateTeamRequest request,
         .FirstOrDefaultAsync(t => t.Name == request.Name && t.ClubId == club.Id);
     if (existingTeamByName != null)
     {
+        existingTeamByName.ExternalId = request.ExternalId; // Update external ID if provided
+        await db.SaveChangesAsync();
         return Results.Ok(existingTeamByName.ToDto());
     }
 
@@ -221,41 +178,31 @@ app.MapPost("/api/teams/find-or-create", async (FindOrCreateTeamRequest request,
     return Results.Created($"/api/teams/{newTeam.Id}", createdTeam.ToDto());
 })
 .WithName("FindOrCreateTeam")
-.WithSummary("Find existing team or create new one")
-.WithDescription("Finds a team by external ID or name+club, or creates a new one if not found")
-.WithTags("Teams")
+.WithSummary("Find or create team")
+.WithDescription("Finds existing team by external ID or name+club, or creates a new one")
 .Accepts<FindOrCreateTeamRequest>("application/json")
 .Produces<TeamDto>(201)
 .Produces<TeamDto>(200)
 .Produces(400);
 
-// Venues endpoints
-app.MapGet("/api/venues", async (CalcioDbContext db) =>
-{
-    var venues = await db.Venues.ToListAsync();
-    return venues.Select(v => v.ToDto()).ToList();
-});
+var venues = api.MapGroup("/venues").WithTags("Venues");
 
-app.MapGet("/api/venues/{id}", async (int id, CalcioDbContext db) =>
-{
-    var venue = await db.Venues.FirstOrDefaultAsync(v => v.Id == id);
-    return venue is not null ? Results.Ok(venue.ToDto()) : Results.NotFound();
-});
-
-app.MapPost("/api/venues", async (Venue venue, CalcioDbContext db) =>
-{
-    db.Venues.Add(venue);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/venues/{venue.Id}", venue);
-});
-
-// Create venue with coordinates for crawler
-app.MapPost("/api/venues/create", async (CreateVenueRequest request, CalcioDbContext db) =>
+venues.MapPost("/find-or-create", async (CreateVenueRequest request, CalcioDbContext db) =>
 {
     // Check if venue already exists by address
     var existingVenue = await db.Venues.FirstOrDefaultAsync(v => v.Address == request.Address);
     if (existingVenue != null)
     {
+        // Update coordinates if provided
+        if (request.Latitude.HasValue && request.Longitude.HasValue)
+        {
+            existingVenue.Location = new NetTopologySuite.Geometries.Point(
+                request.Longitude.Value, request.Latitude.Value)
+            {
+                SRID = 4326
+            };
+            await db.SaveChangesAsync();
+        }
         return Results.Ok(existingVenue.ToDto());
     }
 
@@ -275,49 +222,16 @@ app.MapPost("/api/venues/create", async (CreateVenueRequest request, CalcioDbCon
     await db.SaveChangesAsync();
     return Results.Created($"/api/venues/{venue.Id}", venue.ToDto());
 })
-.WithName("CreateVenueWithCoordinates")
-.WithSummary("Create venue with optional coordinates")
-.WithDescription("Creates a venue with address and optional latitude/longitude coordinates")
-.WithTags("Venues")
+.WithName("FindOrCreateVenue")
+.WithSummary("Find or create venue by address")
+.WithDescription("Finds existing venue by address or creates a new one with optional coordinates")
 .Accepts<CreateVenueRequest>("application/json")
 .Produces<VenueDto>(201)
 .Produces<VenueDto>(200);
 
-// Get venue by address
-app.MapGet("/api/venues/by-address/{address}", async (string address, CalcioDbContext db) =>
-{
-    var venue = await db.Venues.FirstOrDefaultAsync(v => v.Address == address);
-    return venue is not null ? Results.Ok(venue.ToDto()) : Results.NotFound();
-})
-.WithName("GetVenueByAddress")
-.WithSummary("Get venue by address")
-.WithDescription("Retrieves a venue by its address")
-.WithTags("Venues")
-.Produces<VenueDto>()
-.Produces(404);
+var ageGroups = api.MapGroup("/age-groups").WithTags("Age Groups");
 
-// Age Groups endpoints
-app.MapGet("/api/age-groups", async (CalcioDbContext db) =>
-{
-    var ageGroups = await db.AgeGroups.ToListAsync();
-    return ageGroups.Select(ag => ag.ToDto()).ToList();
-});
-
-app.MapGet("/api/age-groups/{id}", async (int id, CalcioDbContext db) =>
-{
-    var ageGroup = await db.AgeGroups.FirstOrDefaultAsync(ag => ag.Id == id);
-    return ageGroup is not null ? Results.Ok(ageGroup.ToDto()) : Results.NotFound();
-});
-
-app.MapPost("/api/age-groups", async (AgeGroup ageGroup, CalcioDbContext db) =>
-{
-    db.AgeGroups.Add(ageGroup);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/age-groups/{ageGroup.Id}", ageGroup);
-});
-
-// Upsert age group (find or create)
-app.MapPost("/api/age-groups/upsert", async (UpsertRequest request, CalcioDbContext db) =>
+ageGroups.MapPost("/find-or-create", async (UpsertRequest request, CalcioDbContext db) =>
 {
     var existing = await db.AgeGroups.FirstOrDefaultAsync(ag => ag.Name == request.Name);
     if (existing != null)
@@ -330,36 +244,16 @@ app.MapPost("/api/age-groups/upsert", async (UpsertRequest request, CalcioDbCont
     await db.SaveChangesAsync();
     return Results.Created($"/api/age-groups/{newAgeGroup.Id}", newAgeGroup.ToDto());
 })
-.WithName("UpsertAgeGroup")
-.WithSummary("Find or create age group")
-.WithDescription("Finds an existing age group by name, or creates a new one if not found")
-.WithTags("Age Groups")
+.WithName("FindOrCreateAgeGroup")
+.WithSummary("Find or create age group by name")
+.WithDescription("Finds existing age group by name or creates a new one")
 .Accepts<UpsertRequest>("application/json")
 .Produces<AgeGroupDto>(201)
 .Produces<AgeGroupDto>(200);
 
-// Competitions endpoints
-app.MapGet("/api/competitions", async (CalcioDbContext db) =>
-{
-    var competitions = await db.Competitions.ToListAsync();
-    return competitions.Select(c => c.ToDto()).ToList();
-});
+var competitions = api.MapGroup("/competitions").WithTags("Competitions");
 
-app.MapGet("/api/competitions/{id}", async (int id, CalcioDbContext db) =>
-{
-    var competition = await db.Competitions.FirstOrDefaultAsync(c => c.Id == id);
-    return competition is not null ? Results.Ok(competition.ToDto()) : Results.NotFound();
-});
-
-app.MapPost("/api/competitions", async (Competition competition, CalcioDbContext db) =>
-{
-    db.Competitions.Add(competition);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/competitions/{competition.Id}", competition);
-});
-
-// Upsert competition (find or create)
-app.MapPost("/api/competitions/upsert", async (UpsertRequest request, CalcioDbContext db) =>
+competitions.MapPost("/find-or-create", async (UpsertRequest request, CalcioDbContext db) =>
 {
     var existing = await db.Competitions.FirstOrDefaultAsync(c => c.Name == request.Name);
     if (existing != null)
@@ -372,118 +266,72 @@ app.MapPost("/api/competitions/upsert", async (UpsertRequest request, CalcioDbCo
     await db.SaveChangesAsync();
     return Results.Created($"/api/competitions/{newCompetition.Id}", newCompetition.ToDto());
 })
-.WithName("UpsertCompetition")
-.WithSummary("Find or create competition")
-.WithDescription("Finds an existing competition by name, or creates a new one if not found")
-.WithTags("Competitions")
+.WithName("FindOrCreateCompetition")
+.WithSummary("Find or create competition by name")
+.WithDescription("Finds existing competition by name or creates a new one")
 .Accepts<UpsertRequest>("application/json")
 .Produces<CompetitionDto>(201)
 .Produces<CompetitionDto>(200);
 
-// Lookup endpoints for crawler
-app.MapGet("/api/lookup/club-id/{externalId}", async (string externalId, CalcioDbContext db) =>
+var matches = api.MapGroup("/matches").WithTags("Matches");
+
+matches.MapPost("/", async (Match match, CalcioDbContext db) =>
+{
+    db.Matches.Add(match);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/matches/{match.Id}", match);
+})
+.WithName("CreateMatch")
+.WithSummary("Create a new match")
+.WithDescription("Creates a new match")
+.Accepts<Match>("application/json")
+.Produces<Match>(201);
+
+// Lookup endpoints for ID-only responses (for crawler compatibility)
+var lookup = api.MapGroup("/lookup").WithTags("Lookup");
+
+lookup.MapGet("/clubs/{externalId}/id", async (string externalId, CalcioDbContext db) =>
 {
     var club = await db.Clubs.FirstOrDefaultAsync(c => c.ExternalId == externalId);
     return club is not null ? Results.Ok(club.Id) : Results.NotFound();
 })
 .WithName("GetClubIdByExternalId")
 .WithSummary("Get club ID by external ID")
-.WithTags("Lookup")
+.WithDescription("Returns only the ID of a club by its external ID")
 .Produces<int>()
 .Produces(404);
 
-app.MapGet("/api/lookup/age-group-id/{name}", async (string name, CalcioDbContext db) =>
+lookup.MapGet("/age-groups/{name}/id", async (string name, CalcioDbContext db) =>
 {
     var ageGroup = await db.AgeGroups.FirstOrDefaultAsync(ag => ag.Name == name);
     return ageGroup is not null ? Results.Ok(ageGroup.Id) : Results.NotFound();
 })
 .WithName("GetAgeGroupIdByName")
 .WithSummary("Get age group ID by name")
-.WithTags("Lookup")
+.WithDescription("Returns only the ID of an age group by its name")
 .Produces<int>()
 .Produces(404);
 
-app.MapGet("/api/lookup/competition-id/{name}", async (string name, CalcioDbContext db) =>
+lookup.MapGet("/competitions/{name}/id", async (string name, CalcioDbContext db) =>
 {
     var competition = await db.Competitions.FirstOrDefaultAsync(c => c.Name == name);
     return competition is not null ? Results.Ok(competition.Id) : Results.NotFound();
 })
 .WithName("GetCompetitionIdByName")
 .WithSummary("Get competition ID by name")
-.WithTags("Lookup")
+.WithDescription("Returns only the ID of a competition by its name")
 .Produces<int>()
 .Produces(404);
 
-app.MapGet("/api/lookup/venue-id/{address}", async (string address, CalcioDbContext db) =>
+lookup.MapGet("/venues/{address}/id", async (string address, CalcioDbContext db) =>
 {
     var venue = await db.Venues.FirstOrDefaultAsync(v => v.Address == address);
     return venue is not null ? Results.Ok(venue.Id) : Results.NotFound();
 })
 .WithName("GetVenueIdByAddress")
 .WithSummary("Get venue ID by address")
-.WithTags("Lookup")
+.WithDescription("Returns only the ID of a venue by its address")
 .Produces<int>()
 .Produces(404);
-
-// Matches endpoints
-app.MapGet("/api/matches", async (CalcioDbContext db) =>
-{
-    var matches = await db.Matches
-        .Include(m => m.HomeTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.AwayTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.Venue)
-        .Include(m => m.AgeGroup)
-        .Include(m => m.Competition)
-        .ToListAsync();
-    return matches.Select(m => m.ToDto()).ToList();
-});
-
-app.MapGet("/api/matches/{id}", async (int id, CalcioDbContext db) =>
-{
-    var match = await db.Matches
-        .Include(m => m.HomeTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.AwayTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.Venue)
-        .Include(m => m.AgeGroup)
-        .Include(m => m.Competition)
-        .FirstOrDefaultAsync(m => m.Id == id);
-    return match is not null ? Results.Ok(match.ToDto()) : Results.NotFound();
-});
-
-app.MapPost("/api/matches", async (Match match, CalcioDbContext db) =>
-{
-    db.Matches.Add(match);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/matches/{match.Id}", match);
-});
-
-// Search endpoints
-app.MapGet("/api/matches/by-team/{teamId}", async (int teamId, CalcioDbContext db) =>
-{
-    var matches = await db.Matches
-        .Include(m => m.HomeTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.AwayTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.Venue)
-        .Include(m => m.AgeGroup)
-        .Include(m => m.Competition)
-        .Where(m => m.HomeTeamId == teamId || m.AwayTeamId == teamId)
-        .ToListAsync();
-    return matches.Select(m => m.ToDto()).ToList();
-});
-
-app.MapGet("/api/matches/by-venue/{venueId}", async (int venueId, CalcioDbContext db) =>
-{
-    var matches = await db.Matches
-        .Include(m => m.HomeTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.AwayTeam).ThenInclude(t => t!.Club)
-        .Include(m => m.Venue)
-        .Include(m => m.AgeGroup)
-        .Include(m => m.Competition)
-        .Where(m => m.VenueId == venueId)
-        .ToListAsync();
-    return matches.Select(m => m.ToDto()).ToList();
-});
-
-app.MapGet("/", () => "Calcio API is running!");
 
 app.Run();

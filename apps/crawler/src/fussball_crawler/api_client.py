@@ -4,24 +4,29 @@ This module provides the same interface as db.py but uses HTTP API calls instead
 """
 
 import requests
+import os
 from typing import Optional, List, Tuple, Any
 from .logger import setup_logging, get_logger
 
 setup_logging()
 logger = get_logger(__name__)
 
-# API Configuration
-API_BASE_URL = "http://localhost:5149"
-
+# API Configuration - supports environment variables
+API_BASE_URL = os.getenv("CALCIO_API_URL", "http://localhost:5149")
+API_ENVIRONMENT = os.getenv("CALCIO_ENV", "development")  # development, testing, production
 
 class ApiClient:
     def __init__(self, base_url: str = API_BASE_URL):
         self.base_url = base_url
+        self.environment = API_ENVIRONMENT
         self.session = requests.Session()
         self.session.headers.update({
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         })
+        
+        # Log which environment we're connecting to
+        logger.info(f"API Client initialized for {self.environment} environment: {self.base_url}")
 
     def _get(self, endpoint: str) -> requests.Response:
         """Make GET request to API endpoint"""
@@ -35,6 +40,13 @@ class ApiClient:
         url = f"{self.base_url}{endpoint}"
         response = self.session.post(url, json=data)
         logger.debug(f"POST {url} -> {response.status_code}")
+        return response
+
+    def _put(self, endpoint: str, data: dict) -> requests.Response:
+        """Make PUT request to API endpoint"""
+        url = f"{self.base_url}{endpoint}"
+        response = self.session.put(url, json=data)
+        logger.debug(f"PUT {url} -> {response.status_code}")
         return response
 
 
@@ -78,7 +90,7 @@ def insert_venue(address: str, coordinates: Optional[tuple] = None) -> None:
             data["latitude"] = coordinates[0]
             data["longitude"] = coordinates[1]
 
-        response = api_client._post("/api/venues/create", data)
+        response = api_client._post("/api/venues/find-or-create", data)
         if response.status_code in [200, 201]:
             logger.debug(f"{address} - Venue upserted successfully via API")
         else:
@@ -90,7 +102,7 @@ def insert_venue(address: str, coordinates: Optional[tuple] = None) -> None:
 def get_club_id_by_external_id(external_id: str) -> Optional[int]:
     """Get club ID by external ID using API"""
     try:
-        response = api_client._get(f"/api/lookup/club-id/{external_id}")
+        response = api_client._get(f"/api/lookup/clubs/{external_id}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -118,7 +130,7 @@ def find_or_create_club(external_id: str, name: str) -> Optional[int]:
 def get_age_group_id_by_name(name: str) -> Optional[int]:
     """Get age group ID by name using API"""
     try:
-        response = api_client._get(f"/api/lookup/age-group-id/{name}")
+        response = api_client._get(f"/api/lookup/age-groups/{name}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -130,7 +142,7 @@ def get_age_group_id_by_name(name: str) -> Optional[int]:
 def get_competition_id_by_name(name: str) -> Optional[int]:
     """Get competition ID by name using API"""
     try:
-        response = api_client._get(f"/api/lookup/competition-id/{name}")
+        response = api_client._get(f"/api/lookup/competitions/{name}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -142,7 +154,7 @@ def get_competition_id_by_name(name: str) -> Optional[int]:
 def insert_age_group(name: str) -> None:
     """Insert age group using API"""
     try:
-        response = api_client._post("/api/age-groups/upsert", {"name": name})
+        response = api_client._post("/api/age-groups/find-or-create", {"name": name})
         if response.status_code in [200, 201]:
             logger.debug(f"{name} - Age group upserted successfully via API")
         else:
@@ -154,7 +166,7 @@ def insert_age_group(name: str) -> None:
 def insert_competition(name: str) -> None:
     """Insert competition using API"""
     try:
-        response = api_client._post("/api/competitions/upsert", {"name": name})
+        response = api_client._post("/api/competitions/find-or-create", {"name": name})
         if response.status_code in [200, 201]:
             logger.debug(f"{name} - Competition upserted successfully via API")
         else:
@@ -246,7 +258,7 @@ def find_venue_location(address: str) -> Optional[int]:
 def get_venue_id_by_address(address: str) -> Optional[int]:
     """Get venue ID by address using API"""
     try:
-        response = api_client._get(f"/api/lookup/venue-id/{address}")
+        response = api_client._get(f"/api/lookup/venues/{address}/id")
         if response.status_code == 200:
             return response.json()
         return None
