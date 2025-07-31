@@ -72,7 +72,7 @@ def init() -> None:
             """
             CREATE TABLE IF NOT EXISTS matches (
                 id SERIAL PRIMARY KEY,
-                url VARCHAR,
+                url VARCHAR UNIQUE,
                 time TIMESTAMP,
                 home_team_id INTEGER REFERENCES teams(id),
                 away_team_id INTEGER REFERENCES teams(id),
@@ -368,7 +368,8 @@ def insert_match(
         cursor.execute(
             """INSERT INTO matches (url, time, home_team_id, away_team_id, 
                venue_id, age_group_id, competition_id) 
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s)
+               ON CONFLICT (url) DO NOTHING""",
             (
                 url,
                 time,
