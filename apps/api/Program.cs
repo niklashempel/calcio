@@ -40,7 +40,38 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
-}); var app = builder.Build();
+});
+
+var app = builder.Build();
+
+// Automatic database migration on startup
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<CalcioDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        logger.LogInformation("Checking for pending database migrations...");
+        var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+
+        if (pendingMigrations.Any())
+        {
+            logger.LogInformation($"Applying {pendingMigrations.Count()} pending migrations...");
+            await context.Database.MigrateAsync();
+            logger.LogInformation("Database migrations completed successfully.");
+        }
+        else
+        {
+            logger.LogInformation("Database is up to date.");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating the database.");
+        throw; // Re-throw to prevent the application from starting with an invalid database state
+    }
+}
 
 // Configure Swagger (enable in all environments for this demo)
 app.UseSwagger();
