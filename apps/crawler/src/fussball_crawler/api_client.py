@@ -102,7 +102,7 @@ def insert_venue(address: str, coordinates: Optional[tuple] = None) -> None:
 def get_club_id_by_external_id(external_id: str) -> Optional[int]:
     """Get club ID by external ID using API"""
     try:
-        response = api_client._get(f"/api/lookup/clubs/{external_id}/id")
+        response = api_client._get(f"/api/clubs/find/{external_id}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -130,7 +130,7 @@ def find_or_create_club(external_id: str, name: str) -> Optional[int]:
 def get_age_group_id_by_name(name: str) -> Optional[int]:
     """Get age group ID by name using API"""
     try:
-        response = api_client._get(f"/api/lookup/age-groups/{name}/id")
+        response = api_client._get(f"/api/age-groups/find/{name}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -142,7 +142,7 @@ def get_age_group_id_by_name(name: str) -> Optional[int]:
 def get_competition_id_by_name(name: str) -> Optional[int]:
     """Get competition ID by name using API"""
     try:
-        response = api_client._get(f"/api/lookup/competitions/{name}/id")
+        response = api_client._get(f"/api/competitions/find/{name}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -248,7 +248,7 @@ def find_venue_location(address: str) -> Optional[int]:
 def get_venue_id_by_address(address: str) -> Optional[int]:
     """Get venue ID by address using API"""
     try:
-        response = api_client._get(f"/api/lookup/venues/{address}/id")
+        response = api_client._get(f"/api/venues/find/by-address/{address}/id")
         if response.status_code == 200:
             return response.json()
         return None

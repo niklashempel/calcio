@@ -27,7 +27,7 @@ public class VenuesController : ControllerBase
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(VenueDto), 200)]
     [ProducesResponseType(typeof(VenueDto), 201)]
-    public async Task<ActionResult<VenueDto>> FindOrCreateVenue([FromBody] CreateVenueRequest request)
+    public async Task<ActionResult<VenueDto>> FindOrCreateVenue([FromBody] CreateVenueRequestDto request)
     {
         // Check if venue already exists by address
         var existingVenue = await _context.Venues.FirstOrDefaultAsync(v => v.Address == request.Address);
@@ -61,5 +61,19 @@ public class VenuesController : ControllerBase
         _context.Venues.Add(venue);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(FindOrCreateVenue), new { id = venue.Id }, venue.ToDto());
+    }
+
+    /// <summary>
+    /// Find venue by address and return only the ID
+    /// </summary>
+    /// <param name="address">Address of the venue</param>
+    /// <returns>Venue ID</returns>
+    [HttpGet("find/by-address/{address}/id")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<int>> FindVenueId(string address)
+    {
+        var venue = await _context.Venues.FirstOrDefaultAsync(v => v.Address == address);
+        return venue is not null ? Ok(venue.Id) : NotFound();
     }
 }

@@ -1,6 +1,6 @@
 namespace Api.DTOs;
 
-public class UpsertRequest
+public class FindOrCreateAgeGroupRequestDto
 {
     public string Name { get; set; } = string.Empty;
 }

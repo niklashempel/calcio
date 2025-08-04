@@ -39,7 +39,7 @@ public class ClubsController : ControllerBase
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(ClubDto), 200)]
     [ProducesResponseType(typeof(ClubDto), 201)]
-    public async Task<ActionResult<ClubDto>> FindOrCreateClub([FromBody] FindOrCreateClubRequest request)
+    public async Task<ActionResult<ClubDto>> FindOrCreateClub([FromBody] FindOrCreateClubRequestDto request)
     {
         var existingClub = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == request.ExternalId);
         if (existingClub != null)
@@ -52,6 +52,20 @@ public class ClubsController : ControllerBase
         var newClub = new Club { ExternalId = request.ExternalId, Name = request.Name };
         _context.Clubs.Add(newClub);
         await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetClubs), new { id = newClub.Id }, newClub.ToDto());
+        return CreatedAtAction(nameof(FindOrCreateClub), new { id = newClub.Id }, newClub.ToDto());
+    }
+
+    /// <summary>
+    /// Find club by external ID and return only the ID
+    /// </summary>
+    /// <param name="externalId">External ID of the club</param>
+    /// <returns>Club ID</returns>
+    [HttpGet("find/{externalId}/id")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<int>> FindClubId(string externalId)
+    {
+        var club = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == externalId);
+        return club is not null ? Ok(club.Id) : NotFound();
     }
 }

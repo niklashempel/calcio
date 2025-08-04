@@ -27,7 +27,7 @@ public class AgeGroupsController : ControllerBase
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(AgeGroupDto), 200)]
     [ProducesResponseType(typeof(AgeGroupDto), 201)]
-    public async Task<ActionResult<AgeGroupDto>> FindOrCreateAgeGroup([FromBody] UpsertRequest request)
+    public async Task<ActionResult<AgeGroupDto>> FindOrCreateAgeGroup([FromBody] FindOrCreateAgeGroupRequestDto request)
     {
         var existing = await _context.AgeGroups.FirstOrDefaultAsync(ag => ag.Name == request.Name);
         if (existing != null)
@@ -39,5 +39,19 @@ public class AgeGroupsController : ControllerBase
         _context.AgeGroups.Add(newAgeGroup);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(FindOrCreateAgeGroup), new { id = newAgeGroup.Id }, newAgeGroup.ToDto());
+    }
+
+    /// <summary>
+    /// Find age group by name and return only the ID
+    /// </summary>
+    /// <param name="name">Name of the age group</param>
+    /// <returns>Age group ID</returns>
+    [HttpGet("find/{name}/id")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<int>> FindAgeGroupId(string name)
+    {
+        var ageGroup = await _context.AgeGroups.FirstOrDefaultAsync(ag => ag.Name == name);
+        return ageGroup is not null ? Ok(ageGroup.Id) : NotFound();
     }
 }

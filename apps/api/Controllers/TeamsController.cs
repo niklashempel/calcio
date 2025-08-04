@@ -28,7 +28,7 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(typeof(TeamDto), 200)]
     [ProducesResponseType(typeof(TeamDto), 201)]
     [ProducesResponseType(400)]
-    public async Task<ActionResult<TeamDto>> FindOrCreateTeam([FromBody] FindOrCreateTeamRequest request)
+    public async Task<ActionResult<TeamDto>> FindOrCreateTeam([FromBody] FindOrCreateTeamRequestDto request)
     {
         // First try to find by external ID if provided
         if (!string.IsNullOrEmpty(request.ExternalId))
@@ -75,5 +75,19 @@ public class TeamsController : ControllerBase
             .FirstAsync(t => t.Id == newTeam.Id);
 
         return CreatedAtAction(nameof(FindOrCreateTeam), new { id = newTeam.Id }, createdTeam.ToDto());
+    }
+
+    /// <summary>
+    /// Find team by external ID and return only the ID
+    /// </summary>
+    /// <param name="externalId">External ID of the team</param>
+    /// <returns>Team ID</returns>
+    [HttpGet("find/{externalId}/id")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<int>> FindTeamId(string externalId)
+    {
+        var team = await _context.Teams.FirstOrDefaultAsync(t => t.ExternalId == externalId);
+        return team is not null ? Ok(team.Id) : NotFound();
     }
 }

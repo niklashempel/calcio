@@ -52,9 +52,9 @@ public static class EntityExtensions
         };
     }
 
-    public static CompetitionDto ToDto(this Competition competition)
+    public static FindOrCreateCompetitionRequestDto ToDto(this Competition competition)
     {
-        return new CompetitionDto
+        return new FindOrCreateCompetitionRequestDto
         {
             Id = competition.Id,
             Name = competition.Name
@@ -72,7 +72,11 @@ public static class EntityExtensions
             AwayTeam = match.AwayTeam?.ToDto(),
             Venue = match.Venue?.ToDto(),
             AgeGroup = match.AgeGroup?.ToDto(),
-            Competition = match.Competition?.ToDto()
+            Competition = match.Competition == null ? null : new CompetitionDto
+            {
+                Id = match.Competition.Id,
+                Name = match.Competition.Name
+            }
         };
     }
 }

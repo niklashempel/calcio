@@ -26,13 +26,12 @@ public class MatchesController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(Match), 201)]
     [ProducesResponseType(400)]
-    public async Task<ActionResult<Match>> CreateMatch([FromBody] MatchCreateRequest request)
+    public async Task<ActionResult<Match>> CreateMatch([FromBody] CreateMatchRequestDto request)
     {
         try
         {
             // Parse the time string and ensure it's in UTC
-            DateTime matchTime;
-            if (DateTime.TryParse(request.Time, out matchTime))
+            if (DateTime.TryParse(request.Time, out DateTime matchTime))
             {
                 // If the DateTime doesn't have a timezone specified, assume it's UTC
                 if (matchTime.Kind == DateTimeKind.Unspecified)
@@ -53,7 +52,7 @@ public class MatchesController : ControllerBase
             var match = new Match
             {
                 Url = request.Url,
-                Time = matchTime, // Now guaranteed to be UTC
+                Time = matchTime,
                 HomeTeamId = request.HomeTeamId,
                 AwayTeamId = request.AwayTeamId,
                 VenueId = request.VenueId,

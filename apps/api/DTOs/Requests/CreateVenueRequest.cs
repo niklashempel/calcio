@@ -1,6 +1,6 @@
 namespace Api.DTOs;
 
-public class CreateVenueRequest
+public class CreateVenueRequestDto
 {
     public string Address { get; set; } = string.Empty;
     public double? Latitude { get; set; }
