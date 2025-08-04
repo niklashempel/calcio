@@ -275,17 +275,56 @@ competitions.MapPost("/find-or-create", async (UpsertRequest request, CalcioDbCo
 
 var matches = api.MapGroup("/matches").WithTags("Matches");
 
-matches.MapPost("/", async (Match match, CalcioDbContext db) =>
+matches.MapPost("/", async (MatchCreateRequest request, CalcioDbContext db) =>
 {
-    db.Matches.Add(match);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/matches/{match.Id}", match);
+    try
+    {
+        // Parse the time string and ensure it's in UTC
+        DateTime matchTime;
+        if (DateTime.TryParse(request.Time, out matchTime))
+        {
+            // If the DateTime doesn't have a timezone specified, assume it's UTC
+            if (matchTime.Kind == DateTimeKind.Unspecified)
+            {
+                matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Utc);
+            }
+            // If it's local time, convert to UTC
+            else if (matchTime.Kind == DateTimeKind.Local)
+            {
+                matchTime = matchTime.ToUniversalTime();
+            }
+        }
+        else
+        {
+            return Results.BadRequest("Invalid time format");
+        }
+
+        var match = new Match
+        {
+            Url = request.Url,
+            Time = matchTime, // Now guaranteed to be UTC
+            HomeTeamId = request.HomeTeamId,
+            AwayTeamId = request.AwayTeamId,
+            VenueId = request.VenueId,
+            AgeGroupId = request.AgeGroupId,
+            CompetitionId = request.CompetitionId
+        };
+
+        db.Matches.Add(match);
+        await db.SaveChangesAsync();
+        return Results.Created($"/api/matches/{match.Id}", match);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest($"Error creating match: {ex.Message}");
+    }
 })
 .WithName("CreateMatch")
 .WithSummary("Create a new match")
 .WithDescription("Creates a new match")
-.Accepts<Match>("application/json")
-.Produces<Match>(201);
+.Accepts<MatchCreateRequest>("application/json")
+.Produces<Match>(201)
+.Produces(400);
 
 // Lookup endpoints for ID-only responses (for crawler compatibility)
 var lookup = api.MapGroup("/lookup").WithTags("Lookup");

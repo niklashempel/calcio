@@ -175,16 +175,6 @@ def insert_competition(name: str) -> None:
         logger.error(f"Error upserting competition via API: {error}")
 
 
-def insert_team(name: str, club_id: int, external_id: Optional[str] = None) -> None:
-    """Insert team using API (for compatibility)"""
-    try:
-        # This is tricky since we need club external_id but have club_id
-        # For now, we'll use the find_or_create_team function instead
-        logger.warning("insert_team deprecated - use find_or_create_team instead")
-    except Exception as error:
-        logger.error(f"Error inserting team via API: {error}")
-
-
 def find_or_create_team(team_name: str, club_external_id: str, team_external_id: Optional[str] = None) -> Optional[int]:
     """Find existing team or create new one using API"""
     try:
