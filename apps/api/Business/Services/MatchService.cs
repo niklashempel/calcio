@@ -3,6 +3,8 @@ using Api.Business.Interfaces;
 using Api.Data;
 using Api.DTOs;
 using Api.Models;
+using Api.DTOs.Requests;
+using Api.Extensions;
 
 namespace Api.Business.Services;
 
@@ -55,5 +57,27 @@ public class MatchService : IMatchService
         {
             throw new InvalidOperationException($"Error creating match: {ex.Message}", ex);
         }
+    }
+
+    public async Task<IEnumerable<MatchDto>> GetMatchesAsync(GetMatchesRequestDto request)
+    {
+        var query = _context.Matches
+            .Include(m => m.Venue)
+            .Include(m => m.HomeTeam)
+                .ThenInclude(t => t!.Club)
+            .Include(m => m.AwayTeam)
+                .ThenInclude(t => t!.Club)
+            .Include(m => m.Competition)
+            .Include(m => m.AgeGroup)
+            .AsQueryable();
+
+        if (request.HasValidBoundingBox)
+        {
+            query = query.Where(m => m.Venue != null && m.Venue.Location != null &&
+                m.Venue.Location.Y >= request.MinLat && m.Venue.Location.Y <= request.MaxLat &&
+                m.Venue.Location.X >= request.MinLng && m.Venue.Location.X <= request.MaxLng);
+        }
+
+        return await query.Select(x => x.ToDto()).ToListAsync();
     }
 }

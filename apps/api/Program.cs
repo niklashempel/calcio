@@ -10,7 +10,13 @@ builder.Services.AddDbContext<CalcioDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
         o => o.UseNetTopologySuite()));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+        options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
+    });
 
 builder.Services.AddScoped<IClubService, ClubService>();
 builder.Services.AddScoped<IVenueService, VenueService>();
@@ -28,13 +34,6 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "API for managing football clubs, teams, matches, and venues"
     });
-});
-
-// Configure JSON serialization to handle circular references
-builder.Services.ConfigureHttpJsonOptions(options =>
-{
-    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-    options.SerializerOptions.WriteIndented = true;
 });
 
 // Add CORS for development
