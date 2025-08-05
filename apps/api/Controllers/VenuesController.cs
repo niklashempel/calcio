@@ -23,7 +23,6 @@ public class VenuesController : ControllerBase
     /// <returns>The found or created venue</returns>
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(VenueDto), 200)]
-    [ProducesResponseType(typeof(VenueDto), 201)]
     public async Task<ActionResult<VenueDto>> FindOrCreateVenue([FromBody] CreateVenueRequestDto request)
     {
         var venue = await _venueService.FindOrCreateVenueAsync(request);

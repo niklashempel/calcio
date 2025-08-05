@@ -35,7 +35,6 @@ public class ClubsController : ControllerBase
     /// <returns>The found or created club</returns>
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(ClubDto), 200)]
-    [ProducesResponseType(typeof(ClubDto), 201)]
     public async Task<ActionResult<ClubDto>> FindOrCreateClub([FromBody] FindOrCreateClubRequestDto request)
     {
         var club = await _clubService.FindOrCreateClubAsync(request);

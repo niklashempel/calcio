@@ -23,7 +23,6 @@ public class CompetitionsController : ControllerBase
     /// <returns>The found or created competition</returns>
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(CompetitionDto), 200)]
-    [ProducesResponseType(typeof(CompetitionDto), 201)]
     public async Task<ActionResult<CompetitionDto>> FindOrCreateCompetition([FromBody] FindOrCreateCompetitionRequestDto request)
     {
         var competition = await _competitionService.FindOrCreateCompetitionAsync(request);

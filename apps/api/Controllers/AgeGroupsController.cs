@@ -23,7 +23,6 @@ public class AgeGroupsController : ControllerBase
     /// <returns>The found or created age group</returns>
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(AgeGroupDto), 200)]
-    [ProducesResponseType(typeof(AgeGroupDto), 201)]
     public async Task<ActionResult<AgeGroupDto>> FindOrCreateAgeGroup([FromBody] FindOrCreateAgeGroupRequestDto request)
     {
         var ageGroup = await _ageGroupService.FindOrCreateAgeGroupAsync(request);

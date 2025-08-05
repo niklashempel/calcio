@@ -23,7 +23,6 @@ public class TeamsController : ControllerBase
     /// <returns>The found or created team</returns>
     [HttpPost("find-or-create")]
     [ProducesResponseType(typeof(TeamDto), 200)]
-    [ProducesResponseType(typeof(TeamDto), 201)]
     [ProducesResponseType(400)]
     public async Task<ActionResult<TeamDto>> FindOrCreateTeam([FromBody] FindOrCreateTeamRequestDto request)
     {
