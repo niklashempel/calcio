@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Api.Data;
-using Api.Models;
 using Api.DTOs;
-using Api.Extensions;
+using Api.Business.Interfaces;
 
 namespace Api.Controllers;
 
@@ -12,11 +9,11 @@ namespace Api.Controllers;
 [Tags("Teams")]
 public class TeamsController : ControllerBase
 {
-    private readonly CalcioDbContext _context;
+    private readonly ITeamService _teamService;
 
-    public TeamsController(CalcioDbContext context)
+    public TeamsController(ITeamService teamService)
     {
-        _context = context;
+        _teamService = teamService;
     }
 
     /// <summary>
@@ -30,51 +27,15 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(400)]
     public async Task<ActionResult<TeamDto>> FindOrCreateTeam([FromBody] FindOrCreateTeamRequestDto request)
     {
-        // First try to find by external ID if provided
-        if (!string.IsNullOrEmpty(request.ExternalId))
+        try
         {
-            var existingTeam = await _context.Teams.Include(t => t.Club)
-                .FirstOrDefaultAsync(t => t.ExternalId == request.ExternalId);
-            if (existingTeam != null)
-            {
-                existingTeam.Name = request.Name;
-                await _context.SaveChangesAsync();
-                return Ok(existingTeam.ToDto());
-            }
+            var team = await _teamService.FindOrCreateTeamAsync(request);
+            return Ok(team);
         }
-
-        // Find the club first
-        var club = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == request.ClubExternalId);
-        if (club == null)
+        catch (ArgumentException ex)
         {
-            return BadRequest($"Club with external ID {request.ClubExternalId} not found");
+            return BadRequest(ex.Message);
         }
-
-        // Try to find existing team by name and club
-        var existingTeamByName = await _context.Teams.Include(t => t.Club)
-            .FirstOrDefaultAsync(t => t.Name == request.Name && t.ClubId == club.Id);
-        if (existingTeamByName != null)
-        {
-            existingTeamByName.ExternalId = request.ExternalId; // Update external ID if provided
-            await _context.SaveChangesAsync();
-            return Ok(existingTeamByName.ToDto());
-        }
-
-        // Create new team
-        var newTeam = new Team
-        {
-            Name = request.Name,
-            ClubId = club.Id,
-            ExternalId = request.ExternalId
-        };
-        _context.Teams.Add(newTeam);
-        await _context.SaveChangesAsync();
-
-        // Load the team with club for DTO
-        var createdTeam = await _context.Teams.Include(t => t.Club)
-            .FirstAsync(t => t.Id == newTeam.Id);
-
-        return CreatedAtAction(nameof(FindOrCreateTeam), new { id = newTeam.Id }, createdTeam.ToDto());
     }
 
     /// <summary>
@@ -87,7 +48,7 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(404)]
     public async Task<ActionResult<int>> FindTeamId(string externalId)
     {
-        var team = await _context.Teams.FirstOrDefaultAsync(t => t.ExternalId == externalId);
-        return team is not null ? Ok(team.Id) : NotFound();
+        var teamId = await _teamService.FindTeamIdAsync(externalId);
+        return teamId.HasValue ? Ok(teamId.Value) : NotFound();
     }
 }

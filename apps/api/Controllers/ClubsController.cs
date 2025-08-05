@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Api.Data;
-using Api.Models;
 using Api.DTOs;
-using Api.Extensions;
+using Api.Business.Interfaces;
 
 namespace Api.Controllers;
 
@@ -12,11 +9,11 @@ namespace Api.Controllers;
 [Tags("Clubs")]
 public class ClubsController : ControllerBase
 {
-    private readonly CalcioDbContext _context;
+    private readonly IClubService _clubService;
 
-    public ClubsController(CalcioDbContext context)
+    public ClubsController(IClubService clubService)
     {
-        _context = context;
+        _clubService = clubService;
     }
 
     /// <summary>
@@ -27,8 +24,8 @@ public class ClubsController : ControllerBase
     [ProducesResponseType(typeof(List<ClubDto>), 200)]
     public async Task<ActionResult<List<ClubDto>>> GetClubs()
     {
-        var clubs = await _context.Clubs.Include(c => c.Teams).ToListAsync();
-        return Ok(clubs.Select(c => c.ToDto()).ToList());
+        var clubs = await _clubService.GetAllClubsAsync();
+        return Ok(clubs);
     }
 
     /// <summary>
@@ -41,18 +38,8 @@ public class ClubsController : ControllerBase
     [ProducesResponseType(typeof(ClubDto), 201)]
     public async Task<ActionResult<ClubDto>> FindOrCreateClub([FromBody] FindOrCreateClubRequestDto request)
     {
-        var existingClub = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == request.ExternalId);
-        if (existingClub != null)
-        {
-            existingClub.Name = request.Name;
-            await _context.SaveChangesAsync();
-            return Ok(existingClub.ToDto());
-        }
-
-        var newClub = new Club { ExternalId = request.ExternalId, Name = request.Name };
-        _context.Clubs.Add(newClub);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(FindOrCreateClub), new { id = newClub.Id }, newClub.ToDto());
+        var club = await _clubService.FindOrCreateClubAsync(request);
+        return Ok(club);
     }
 
     /// <summary>
@@ -65,7 +52,7 @@ public class ClubsController : ControllerBase
     [ProducesResponseType(404)]
     public async Task<ActionResult<int>> FindClubId(string externalId)
     {
-        var club = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == externalId);
-        return club is not null ? Ok(club.Id) : NotFound();
+        var clubId = await _clubService.FindClubIdAsync(externalId);
+        return clubId.HasValue ? Ok(clubId.Value) : NotFound();
     }
 }

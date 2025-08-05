@@ -52,9 +52,9 @@ public static class EntityExtensions
         };
     }
 
-    public static FindOrCreateCompetitionRequestDto ToDto(this Competition competition)
+    public static CompetitionDto ToDto(this Competition competition)
     {
-        return new FindOrCreateCompetitionRequestDto
+        return new CompetitionDto
         {
             Id = competition.Id,
             Name = competition.Name

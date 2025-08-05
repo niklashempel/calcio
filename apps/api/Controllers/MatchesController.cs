@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Api.Data;
-using Api.Models;
 using Api.DTOs;
+using Api.Models;
+using Api.Business.Interfaces;
 
 namespace Api.Controllers;
 
@@ -11,11 +10,11 @@ namespace Api.Controllers;
 [Tags("Matches")]
 public class MatchesController : ControllerBase
 {
-    private readonly CalcioDbContext _context;
+    private readonly IMatchService _matchService;
 
-    public MatchesController(CalcioDbContext context)
+    public MatchesController(IMatchService matchService)
     {
-        _context = context;
+        _matchService = matchService;
     }
 
     /// <summary>
@@ -30,43 +29,16 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            // Parse the time string and ensure it's in UTC
-            if (DateTime.TryParse(request.Time, out DateTime matchTime))
-            {
-                // If the DateTime doesn't have a timezone specified, assume it's UTC
-                if (matchTime.Kind == DateTimeKind.Unspecified)
-                {
-                    matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Utc);
-                }
-                // If it's local time, convert to UTC
-                else if (matchTime.Kind == DateTimeKind.Local)
-                {
-                    matchTime = matchTime.ToUniversalTime();
-                }
-            }
-            else
-            {
-                return BadRequest("Invalid time format");
-            }
-
-            var match = new Match
-            {
-                Url = request.Url,
-                Time = matchTime,
-                HomeTeamId = request.HomeTeamId,
-                AwayTeamId = request.AwayTeamId,
-                VenueId = request.VenueId,
-                AgeGroupId = request.AgeGroupId,
-                CompetitionId = request.CompetitionId
-            };
-
-            _context.Matches.Add(match);
-            await _context.SaveChangesAsync();
+            var match = await _matchService.CreateMatchAsync(request);
             return CreatedAtAction(nameof(CreateMatch), new { id = match.Id }, match);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            return BadRequest($"Error creating match: {ex.Message}");
+            return BadRequest(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
         }
     }
 }

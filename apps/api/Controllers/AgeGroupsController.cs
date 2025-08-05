@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Api.Data;
-using Api.Models;
 using Api.DTOs;
-using Api.Extensions;
+using Api.Business.Interfaces;
 
 namespace Api.Controllers;
 
@@ -12,11 +9,11 @@ namespace Api.Controllers;
 [Tags("Age Groups")]
 public class AgeGroupsController : ControllerBase
 {
-    private readonly CalcioDbContext _context;
+    private readonly IAgeGroupService _ageGroupService;
 
-    public AgeGroupsController(CalcioDbContext context)
+    public AgeGroupsController(IAgeGroupService ageGroupService)
     {
-        _context = context;
+        _ageGroupService = ageGroupService;
     }
 
     /// <summary>
@@ -29,16 +26,8 @@ public class AgeGroupsController : ControllerBase
     [ProducesResponseType(typeof(AgeGroupDto), 201)]
     public async Task<ActionResult<AgeGroupDto>> FindOrCreateAgeGroup([FromBody] FindOrCreateAgeGroupRequestDto request)
     {
-        var existing = await _context.AgeGroups.FirstOrDefaultAsync(ag => ag.Name == request.Name);
-        if (existing != null)
-        {
-            return Ok(existing.ToDto());
-        }
-
-        var newAgeGroup = new AgeGroup { Name = request.Name };
-        _context.AgeGroups.Add(newAgeGroup);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(FindOrCreateAgeGroup), new { id = newAgeGroup.Id }, newAgeGroup.ToDto());
+        var ageGroup = await _ageGroupService.FindOrCreateAgeGroupAsync(request);
+        return Ok(ageGroup);
     }
 
     /// <summary>
@@ -51,7 +40,7 @@ public class AgeGroupsController : ControllerBase
     [ProducesResponseType(404)]
     public async Task<ActionResult<int>> FindAgeGroupId(string name)
     {
-        var ageGroup = await _context.AgeGroups.FirstOrDefaultAsync(ag => ag.Name == name);
-        return ageGroup is not null ? Ok(ageGroup.Id) : NotFound();
+        var ageGroupId = await _ageGroupService.FindAgeGroupIdAsync(name);
+        return ageGroupId.HasValue ? Ok(ageGroupId.Value) : NotFound();
     }
 }

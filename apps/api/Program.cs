@@ -1,21 +1,24 @@
 using Microsoft.EntityFrameworkCore;
 using Api.Data;
-using Api.Models;
-using Api.DTOs;
-using Api.Extensions;
+using Api.Business.Interfaces;
+using Api.Business.Services;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Entity Framework
 builder.Services.AddDbContext<CalcioDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
         o => o.UseNetTopologySuite()));
 
-// Add controllers
 builder.Services.AddControllers();
 
-// Add API Explorer and Swagger
+builder.Services.AddScoped<IClubService, ClubService>();
+builder.Services.AddScoped<IVenueService, VenueService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<IAgeGroupService, AgeGroupService>();
+builder.Services.AddScoped<ICompetitionService, CompetitionService>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -76,7 +79,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure Swagger (enable in all environments for this demo)
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -87,7 +89,6 @@ app.UseSwaggerUI(c =>
 // Use CORS
 app.UseCors("AllowAll");
 
-// Map controllers
 app.MapControllers();
 
 // Root endpoint
