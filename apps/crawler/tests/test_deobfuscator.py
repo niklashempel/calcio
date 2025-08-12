@@ -1,5 +1,5 @@
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 # Add src to path for imports
@@ -16,7 +16,7 @@ class TestFussballDeDeobfuscator(unittest.TestCase):
         # Load obfuscated HTML (contains &#xE characters)
         obfuscated_file = data_dir / "fussball_de_original.html"
         if obfuscated_file.exists():
-            with open(obfuscated_file, "r", encoding="utf-8") as f:
+            with open(obfuscated_file, encoding="utf-8") as f:
                 self.obfuscated_html = f.read()
         else:
             self.obfuscated_html = None
@@ -24,7 +24,7 @@ class TestFussballDeDeobfuscator(unittest.TestCase):
         # Load expected deobfuscated HTML
         expected_file = data_dir / "fussball_de_expected.html"
         if expected_file.exists():
-            with open(expected_file, "r", encoding="utf-8") as f:
+            with open(expected_file, encoding="utf-8") as f:
                 self.expected_html = f.read()
         else:
             self.expected_html = None

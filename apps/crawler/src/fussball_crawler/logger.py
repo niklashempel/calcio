@@ -19,7 +19,7 @@ def setup_logging() -> logging.Logger:
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Set the root logger level
     root_logger.setLevel(numeric_level)
 
@@ -33,7 +33,7 @@ def setup_logging() -> logging.Logger:
         handler.setLevel(numeric_level)
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
@@ -43,7 +43,7 @@ def setup_logging() -> logging.Logger:
         handler.setLevel(numeric_level)
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)

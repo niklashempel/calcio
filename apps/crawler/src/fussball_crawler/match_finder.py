@@ -1,9 +1,10 @@
+from urllib.parse import quote, urlencode
+
+import requests
+
 from . import api_client
 from . import scraper as fussball_scraper
-from urllib.parse import urlencode, quote
-import requests
-from .logger import setup_logging, get_logger
-from typing import Optional, Tuple
+from .logger import get_logger, setup_logging
 
 setup_logging()
 logger = get_logger(__name__)
@@ -11,7 +12,8 @@ logger = get_logger(__name__)
 from_date = "2025-07-25"
 to_date = "2025-08-06"
 
-def find_lat_long_online(location: str) -> Optional[Tuple[float, float]]:
+
+def find_lat_long_online(location: str) -> tuple[float, float] | None:
     payload = {"q": location}
     params = urlencode(payload, quote_via=quote)
     r = requests.get("http://localhost:2322/api", params=params)
@@ -28,7 +30,7 @@ def main() -> None:
     api_available = api_client.available()
     if not api_available:
         return
-    
+
     clubs = api_client.get_clubs()
     if clubs is None:
         logger.info("No clubs found...")
@@ -36,17 +38,14 @@ def main() -> None:
     else:
         logger.info("Found " + str(len(clubs)) + " clubs...")
 
-    progress = 0
-
-    for club in clubs:
-        progress += 1
+    for progress, club in enumerate(clubs):
         logger.info(
             "Progress: "
-            + str(progress)
+            + str(progress + 1)
             + "/"
             + str(len(clubs))
             + " (progress: "
-            + str(progress / len(clubs) * 100)
+            + str((progress + 1) / len(clubs) * 100)
             + "%)"
         )
 
@@ -54,7 +53,7 @@ def main() -> None:
 
         for match in matches:
             venue_id = api_client.find_venue_location(match["address"])
-            if venue_id == None:
+            if venue_id is None:
                 coordinates = find_lat_long_online(match["address"])
                 api_client.insert_venue(match["address"], coordinates=coordinates)
                 venue_id = api_client.get_venue_id_by_address(match["address"])
@@ -68,36 +67,40 @@ def main() -> None:
             # Find or create teams using the new external IDs and URLs
             # For home team: use home_club_id if available, otherwise fallback to current club
             home_club_id = match.get("home_club_id", club[0])
-            
+
             # Check if home club exists, if not, fetch club info from team URL
-            if not api_client.get_club_id_by_external_id(home_club_id) and match.get("home_team_url"):
-                club_info = fussball_scraper.fetch_club_name_from_team_url(match["home_team_url"])
+            if not api_client.get_club_id_by_external_id(home_club_id) and match.get(
+                "home_team_url"
+            ):
+                club_info = fussball_scraper.fetch_club_name_from_team_url(
+                    match["home_team_url"]
+                )
                 if club_info:
                     # Create the club with the info from the team page
-                    api_client.insert_club(club_info['club_id'], club_info['club_name'])
-                    home_club_id = club_info['club_id']  # Use the correct club ID
-            
+                    api_client.insert_club(club_info["club_id"], club_info["club_name"])
+                    home_club_id = club_info["club_id"]  # Use the correct club ID
+
             home_team_id = api_client.find_or_create_team(
-                match["home"], 
-                home_club_id,
-                match.get("home_team_id")
+                match["home"], home_club_id, match.get("home_team_id")
             )
-            
+
             # For away team: use away_club_id if available, otherwise fallback to current club
             away_club_id = match.get("away_club_id", club[0])
-            
+
             # Check if away club exists, if not, fetch club info from team URL
-            if not api_client.get_club_id_by_external_id(away_club_id) and match.get("away_team_url"):
-                club_info = fussball_scraper.fetch_club_name_from_team_url(match["away_team_url"])
+            if not api_client.get_club_id_by_external_id(away_club_id) and match.get(
+                "away_team_url"
+            ):
+                club_info = fussball_scraper.fetch_club_name_from_team_url(
+                    match["away_team_url"]
+                )
                 if club_info:
                     # Create the club with the info from the team page
-                    api_client.insert_club(club_info['club_id'], club_info['club_name'])
-                    away_club_id = club_info['club_id']  # Use the correct club ID
-            
+                    api_client.insert_club(club_info["club_id"], club_info["club_name"])
+                    away_club_id = club_info["club_id"]  # Use the correct club ID
+
             away_team_id = api_client.find_or_create_team(
-                match["away"], 
-                away_club_id,
-                match.get("away_team_id")
+                match["away"], away_club_id, match.get("away_team_id")
             )
 
             # Insert match with proper foreign keys

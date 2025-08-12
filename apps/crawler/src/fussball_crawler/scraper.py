@@ -1,20 +1,21 @@
+import json
+import locale
+import re
+from datetime import datetime
+from typing import Any
+
 import requests
 from bs4 import BeautifulSoup, Tag
-from datetime import datetime
-import locale
-from typing import List, Dict, Any, Optional
-import re
 
 from .deobfuscator import Deobfuscator
-from .logger import setup_logging, get_logger
-import json
+from .logger import get_logger, setup_logging
 
 # Setup centralized logging
 setup_logging()
 logger = get_logger(__name__)
 
 
-def get_matches(table: Tag) -> List[Dict[str, Any]]:
+def get_matches(table: Tag) -> list[dict[str, Any]]:
     """Extract matches from the fussball.de table"""
     matches = []
     rows = table.find_all("tr")
@@ -57,7 +58,7 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             else:
                 logger.warning(f"Invalid full format: {headline_text}")
                 continue
-        elif current_date and not " | " in headline_text:
+        elif current_date and " | " not in headline_text:
             # Time-only format: "19:45" - use the stored date
             date = current_date
             time = headline_text.replace(" Uhr", "")  # Remove "Uhr" if present
@@ -92,24 +93,26 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
 
         club_row_element = rows[i + 3]
         if not isinstance(club_row_element, Tag):
-            logger.warning(f"Club row at index {i + 3} is not a Tag: {type(club_row_element)}")
+            logger.warning(
+                f"Club row at index {i + 3} is not a Tag: {type(club_row_element)}"
+            )
             continue
-            
+
         club_row = club_row_element.find_all(
             "td", {"class": "column-club"}
         )  # ['TSV 1860 München', 'FC Bayern München']
         if len(club_row) != 2:
             logger.warning(f"Invalid clubs: {club_row_element.text}")
             continue
-            
+
         # Check if club_row elements are Tags
         if not isinstance(club_row[0], Tag) or not isinstance(club_row[1], Tag):
-            logger.warning(f"Club row elements are not Tags")
+            logger.warning("Club row elements are not Tags")
             continue
-            
+
         url_element = club_row[0].find("a")  # type: ignore[union-attr]
         if not url_element or not isinstance(url_element, Tag):
-            logger.warning(f"No URL found for match")
+            logger.warning("No URL found for match")
             continue
         url = url_element["href"]
 
@@ -117,15 +120,15 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         home_name_element = club_row[0].find("div", {"class": "club-name"})  # type: ignore[union-attr]
         home_logo_element = club_row[0].find("span", {"data-responsive-image": True})  # type: ignore[union-attr]
         home_link_element = club_row[0].find("a")  # type: ignore[union-attr]
-        
+
         # Extract away team data (name, club_id, team_id)
         away_name_element = club_row[1].find("div", {"class": "club-name"})  # type: ignore[union-attr]
         away_logo_element = club_row[1].find("span", {"data-responsive-image": True})  # type: ignore[union-attr]
         away_link_element = club_row[1].find("a")  # type: ignore[union-attr]
-        
-        if home_name_element == None or away_name_element == None:
+
+        if home_name_element is None or away_name_element is None:
             if "spielfrei" in club_row_element.text:
-                logger.debug(f"Club spielfrei")
+                logger.debug("Club spielfrei")
                 continue
             info = club_row[0].find("span", {"class": "info-text"})  # type: ignore[union-attr]
             if info and isinstance(info, Tag):
@@ -134,50 +137,60 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             logger.warning(f"Invalid clubs: {club_row_element.text.strip()}")
             continue
 
-        if not isinstance(home_name_element, Tag) or not isinstance(away_name_element, Tag):
-            logger.warning(f"Home or away team elements are not Tags")
+        if not isinstance(home_name_element, Tag) or not isinstance(
+            away_name_element, Tag
+        ):
+            logger.warning("Home or away team elements are not Tags")
             continue
 
         # Extract names
         home_name = home_name_element.text.strip()
         away_name = away_name_element.text.strip()
-        
+
         # Extract club IDs from data-responsive-image attribute
         home_club_id = None
         away_club_id = None
-        
+
         if home_logo_element and isinstance(home_logo_element, Tag):
             logo_url = home_logo_element.get("data-responsive-image")
             if logo_url and isinstance(logo_url, str) and "/id/" in logo_url:
                 home_club_id = logo_url.split("/id/")[-1]
-                
+
         if away_logo_element and isinstance(away_logo_element, Tag):
             logo_url = away_logo_element.get("data-responsive-image")
             if logo_url and isinstance(logo_url, str) and "/id/" in logo_url:
                 away_club_id = logo_url.split("/id/")[-1]
-        
+
         # Extract team IDs and URLs from href attribute
         home_team_id = None
         away_team_id = None
         home_team_url = None
         away_team_url = None
-        
+
         if home_link_element and isinstance(home_link_element, Tag):
             href = home_link_element.get("href")
             if href and isinstance(href, str):
-                home_team_url = href if href.startswith("http") else f"https://www.fussball.de{href}"
+                home_team_url = (
+                    href
+                    if href.startswith("http")
+                    else f"https://www.fussball.de{href}"
+                )
                 if "/team-id/" in href:
                     home_team_id = href.split("/team-id/")[-1]
-                
+
         if away_link_element and isinstance(away_link_element, Tag):
             href = away_link_element.get("href")
             if href and isinstance(href, str):
-                away_team_url = href if href.startswith("http") else f"https://www.fussball.de{href}"
+                away_team_url = (
+                    href
+                    if href.startswith("http")
+                    else f"https://www.fussball.de{href}"
+                )
                 if "/team-id/" in href:
                     away_team_id = href.split("/team-id/")[-1]
 
         datetime_obj = parse_date_time(date, time)
-        if datetime_obj == None:
+        if datetime_obj is None:
             logger.warning(f"Invalid date: {date} {time}")
             continue
 
@@ -211,9 +224,11 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
         # Find div that starts with 'Spielstätte:'
         venue_row_element = rows[i + 4]
         if not isinstance(venue_row_element, Tag):
-            logger.warning(f"Venue row at index {i + 4} is not a Tag: {type(venue_row_element)}")
+            logger.warning(
+                f"Venue row at index {i + 4} is not a Tag: {type(venue_row_element)}"
+            )
             continue
-            
+
         venue_divs = venue_row_element.find_all("div")  # type: ignore[union-attr]
         if len(venue_divs) == 0:
             logger.warning(
@@ -222,9 +237,9 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             continue
         venue_element = venue_divs[-1]
         if not isinstance(venue_element, Tag):
-            logger.warning(f"Venue element is not a Tag")
+            logger.warning("Venue element is not a Tag")
             continue
-            
+
         if "Spielstätte:" not in venue_element.text:
             if "Schiedsrichter" in venue_element.text:
                 logger.debug(
@@ -234,13 +249,15 @@ def get_matches(table: Tag) -> List[Dict[str, Any]]:
             logger.warning(f"Spielstätte not found: {venue_element.text}")
             continue
 
-        venue_text = venue_element.text.replace("Spielstätte:", "") if venue_element.text else ""
+        venue_text = (
+            venue_element.text.replace("Spielstätte:", "") if venue_element.text else ""
+        )
         venue_split = venue_text.split("|")
         if len(venue_split) != 3:
             logger.warning(f"Invalid venue: {venue_element.text}")
             continue
 
-        name = venue_split[0].strip()
+        # name = venue_split[0].strip()
         address = venue_split[1].strip()
         city = venue_split[2].strip()
         matches.append(
@@ -269,7 +286,7 @@ def de_obfuscate(r: requests.Response) -> str:
     return deobfuscator.deobfuscate_html(r.text)
 
 
-def parse_date_time(date: str, time: str) -> Optional[datetime]:
+def parse_date_time(date: str, time: str) -> datetime | None:
     """Parse German date and time format from fussball.de"""
     try:
         locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
@@ -301,7 +318,9 @@ def parse_date_time(date: str, time: str) -> Optional[datetime]:
             return None
 
 
-def fetch_club_matches(club_external_id: str, from_date: str, to_date: str) -> List[Dict[str, Any]]:
+def fetch_club_matches(
+    club_external_id: str, from_date: str, to_date: str
+) -> list[dict[str, Any]]:
     """Fetch matches for a specific club from fussball.de"""
     url = (
         "https://www.fussball.de/vereinsspielplan.druck/-/datum-bis/"
@@ -337,7 +356,7 @@ def fetch_club_matches(club_external_id: str, from_date: str, to_date: str) -> L
         return []
 
 
-def fetch_club_name_from_team_url(team_url: str) -> Optional[Dict[str, str]]:
+def fetch_club_name_from_team_url(team_url: str) -> dict[str, str] | None:
     """
     Fetch club name and ID from a team page by parsing JavaScript variables.
     Returns dict with 'club_id' and 'club_name' or None if not found.
@@ -345,29 +364,28 @@ def fetch_club_name_from_team_url(team_url: str) -> Optional[Dict[str, str]]:
     try:
         logger.debug(f"Fetching club info from team URL: {team_url}")
         r = requests.get(team_url)
-        
+
         if r.status_code != 200:
-            logger.warning(f"Failed to fetch team page: {team_url} (status: {r.status_code})")
+            logger.warning(
+                f"Failed to fetch team page: {team_url} (status: {r.status_code})"
+            )
             return None
-            
+
         # Look for the JavaScript variables in the page content
         # Pattern to match edVereinId='...' and edVereinName='...'
         club_id_match = re.search(r"edVereinId='([^']+)'", r.text)
         club_name_match = re.search(r"edVereinName='([^']+)'", r.text)
-        
+
         if club_id_match and club_name_match:
             club_id = club_id_match.group(1)
             club_name = club_name_match.group(1)
-            
+
             logger.debug(f"Found club info: {club_name} (ID: {club_id})")
-            return {
-                'club_id': club_id,
-                'club_name': club_name
-            }
+            return {"club_id": club_id, "club_name": club_name}
         else:
             logger.warning(f"Could not find club information in team page: {team_url}")
             return None
-            
+
     except Exception as e:
         logger.error(f"Error fetching club info from team URL {team_url}: {e}")
         return None

@@ -1,16 +1,17 @@
+import logging
 import os
+from typing import Any
+
 import requests
 from bs4 import BeautifulSoup
 from fontTools.ttLib import TTFont  # type: ignore[import-untyped]
-from typing import Dict, List, Any
-import logging
 
 
 class Deobfuscator:
     def __init__(self) -> None:
         self.logger = logging.getLogger("Deobfuscator")
 
-    def build_char_mapping(self, font_filename: str) -> Dict[str, str]:
+    def build_char_mapping(self, font_filename: str) -> dict[str, str]:
         glyph_to_char = {
             # Numbers
             "zero": "0",
@@ -202,7 +203,7 @@ class Deobfuscator:
         if not all_obfuscated_spans:
             self.logger.debug("No obfuscated spans found")
             return html
-        spans_by_id: Dict[Any, List[Any]] = {}
+        spans_by_id: dict[Any, list[Any]] = {}
         from bs4.element import Tag
 
         for span in all_obfuscated_spans:
@@ -243,7 +244,7 @@ class Deobfuscator:
                     os.remove(font_filename)
         return str(soup)
 
-    def _replace_chars(self, text: str, char_mapping: Dict[str, str]) -> str:
+    def _replace_chars(self, text: str, char_mapping: dict[str, str]) -> str:
         for obfuscated_char, real_char in char_mapping.items():
             text = text.replace(obfuscated_char, real_char)
         # Post-processing cleanup for common patterns
