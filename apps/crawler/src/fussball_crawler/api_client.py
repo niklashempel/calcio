@@ -12,12 +12,10 @@ logger = get_logger(__name__)
 
 # API Configuration - supports environment variables
 API_BASE_URL = os.getenv("CALCIO_API_URL", "http://localhost:5149")
-API_ENVIRONMENT = os.getenv("CALCIO_ENV", "development")  # development, testing, production
 
 class ApiClient:
     def __init__(self, base_url: str = API_BASE_URL):
         self.base_url = base_url
-        self.environment = API_ENVIRONMENT
         self.session = requests.Session()
         self.session.headers.update({
             'Content-Type': 'application/json',
@@ -25,7 +23,7 @@ class ApiClient:
         })
         
         # Log which environment we're connecting to
-        logger.debug(f"API Client initialized for {self.environment} environment: {self.base_url}")
+        logger.debug(f"API Client initialized for environment: {self.base_url}")
 
     def _get(self, endpoint: str) -> requests.Response:
         """Make GET request to API endpoint"""

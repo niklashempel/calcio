@@ -23,8 +23,13 @@ python -m pip install -e .[dev]
 # Activate the virtual environment if not already done
 source .venv/bin/activate
 # Run club finder with post codes CSV file
-python -m src.fussball_crawler.club_finder data/post_codes.csv
+./crawler --help
+./crawler find-clubs 80331
+```
+
 # Run match finder
+
+```
 python -m src.fussball_crawler.match_finder
 ```
 

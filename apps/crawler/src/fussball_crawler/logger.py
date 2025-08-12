@@ -12,25 +12,41 @@ def setup_logging() -> logging.Logger:
     if log_level not in valid_levels:
         log_level = "INFO"
 
+    # Get the numeric log level
+    numeric_level = getattr(logging, log_level)
+
+    # Clear existing handlers and reconfigure
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Set the root logger level
+    root_logger.setLevel(numeric_level)
+
+    # Configure logging
     if log_file:
         log_dir = os.path.dirname(log_file)
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
-        logging.basicConfig(
-            level=getattr(logging, log_level),
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            filename=log_file,
-            filemode="a",
+        handler = logging.FileHandler(log_file, mode="a")
+        handler.setLevel(numeric_level)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
         )
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
         print(f"Debug logging to file: {log_file}")
     else:
-        logging.basicConfig(
-            level=getattr(logging, log_level),
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+        handler = logging.StreamHandler()
+        handler.setLevel(numeric_level)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
         )
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
 
     return logging.getLogger(__name__)
 
