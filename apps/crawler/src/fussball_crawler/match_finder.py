@@ -25,7 +25,10 @@ def find_lat_long_online(location: str) -> Optional[Tuple[float, float]]:
 
 
 def main() -> None:
-    api_client.init()
+    api_available = api_client.available()
+    if not api_available:
+        return
+    
     clubs = api_client.get_clubs()
     if clubs is None:
         logger.info("No clubs found...")
