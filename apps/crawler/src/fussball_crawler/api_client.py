@@ -82,11 +82,12 @@ def available() -> bool:
     return False
 
 
-def insert_club(external_id: str, name: str) -> None:
+def insert_club(external_id: str, name: str, post_code: str | None) -> None:
     """Insert club using API (for compatibility)"""
     try:
         response = _get_initialized_client()._post(
-            "/api/clubs/find-or-create", {"externalId": external_id, "name": name}
+            "/api/clubs/find-or-create",
+            {"externalId": external_id, "name": name, "postCode": post_code},
         )
         if response.status_code in [200, 201]:
             logger.debug(f"{external_id} - Club upserted successfully via API")

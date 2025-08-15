@@ -27,12 +27,15 @@ public class ClubService : IClubService
         var existingClub = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == request.ExternalId);
         if (existingClub != null)
         {
-            existingClub.Name = request.Name;
+            if (request.PostCode != null)
+            {
+                existingClub.PostCode = request.PostCode;
+            }
             await _context.SaveChangesAsync();
             return existingClub.ToDto();
         }
 
-        var newClub = new Club { ExternalId = request.ExternalId, Name = request.Name };
+        var newClub = new Club { ExternalId = request.ExternalId, Name = request.Name, PostCode = request.PostCode };
         _context.Clubs.Add(newClub);
         await _context.SaveChangesAsync();
         return newClub.ToDto();

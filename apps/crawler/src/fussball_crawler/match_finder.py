@@ -27,7 +27,6 @@ def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) ->
     logger = get_logger(__name__)
     setup_logging()
 
-    # Initialize API client with the provided URL
     api_client.get_client(calio_api_url)
 
     api_available = api_client.available()
@@ -80,7 +79,9 @@ def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) ->
                 )
                 if club_info:
                     # Create the club with the info from the team page
-                    api_client.insert_club(club_info["club_id"], club_info["club_name"])
+                    api_client.insert_club(
+                        club_info["club_id"], club_info["club_name"], None
+                    )
                     home_club_id = club_info["club_id"]  # Use the correct club ID
 
             home_team_id = api_client.find_or_create_team(
@@ -99,7 +100,9 @@ def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) ->
                 )
                 if club_info:
                     # Create the club with the info from the team page
-                    api_client.insert_club(club_info["club_id"], club_info["club_name"])
+                    api_client.insert_club(
+                        club_info["club_id"], club_info["club_name"], None
+                    )
                     away_club_id = club_info["club_id"]  # Use the correct club ID
 
             away_team_id = api_client.find_or_create_team(
