@@ -62,6 +62,10 @@ namespace Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<string>("PostCode")
+                        .HasColumnType("text")
+                        .HasColumnName("post_code");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
@@ -167,6 +171,9 @@ namespace Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClubId");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique();
 
                     b.ToTable("teams");
                 });

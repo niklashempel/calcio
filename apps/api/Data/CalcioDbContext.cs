@@ -38,6 +38,10 @@ public class CalcioDbContext : DbContext
             .HasIndex(c => c.Name)
             .IsUnique();
 
+        modelBuilder.Entity<Team>()
+            .HasIndex(t => t.ExternalId)
+            .IsUnique();
+
         // Configure relationships for Match entity
         modelBuilder.Entity<Match>()
             .HasOne(m => m.HomeTeam)

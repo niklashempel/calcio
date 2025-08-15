@@ -17,4 +17,7 @@ public class Club
     public string? Name { get; set; }
 
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+
+    [Column("post_code")]
+    public string? PostCode { get; set; }
 }

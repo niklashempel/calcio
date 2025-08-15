@@ -36,7 +36,8 @@ namespace Api.Migrations
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     external_id = table.Column<string>(type: "text", nullable: true),
-                    name = table.Column<string>(type: "text", nullable: true)
+                    name = table.Column<string>(type: "text", nullable: true),
+                    post_code = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -183,6 +184,12 @@ namespace Api.Migrations
                 name: "IX_teams_club_id",
                 table: "teams",
                 column: "club_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_teams_external_id",
+                table: "teams",
+                column: "external_id",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_venues_address",

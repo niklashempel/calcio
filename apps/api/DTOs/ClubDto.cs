@@ -6,4 +6,5 @@ public class ClubDto
     public string? ExternalId { get; set; }
     public string? Name { get; set; }
     public List<TeamDto>? Teams { get; set; }
+    public string? PostCode { get; set; }
 }

@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Api.Migrations
 {
     [DbContext(typeof(CalcioDbContext))]
-    [Migration("20250804145756_InitialMigration")]
+    [Migration("20250815132246_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -64,6 +64,10 @@ namespace Api.Migrations
                     b.Property<string>("Name")
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<string>("PostCode")
+                        .HasColumnType("text")
+                        .HasColumnName("post_code");
 
                     b.HasKey("Id");
 
@@ -170,6 +174,9 @@ namespace Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClubId");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique();
 
                     b.ToTable("teams");
                 });

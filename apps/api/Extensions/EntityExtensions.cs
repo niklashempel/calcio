@@ -12,11 +12,12 @@ public static class EntityExtensions
             Id = club.Id,
             ExternalId = club.ExternalId,
             Name = club.Name,
+            PostCode = club.PostCode,
             Teams = club.Teams?.Select(t => new TeamDto
             {
                 Id = t.Id,
                 Name = t.Name,
-                ClubId = t.ClubId
+                ClubId = t.ClubId,
             }).ToList()
         };
     }
