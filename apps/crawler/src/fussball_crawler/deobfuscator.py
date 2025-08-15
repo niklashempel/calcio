@@ -1,15 +1,53 @@
 import logging
 import os
+import tempfile
+from collections.abc import Callable
 from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
 from fontTools.ttLib import TTFont  # type: ignore[import-untyped]
 
+FontFetchResult = tuple[str, bool]  # (path_to_font_file, remove_after_use)
+FontFetcher = Callable[[str], FontFetchResult]
+
+
+def _network_font_fetcher(obfuscation_id: str) -> FontFetchResult:
+    font_url = f"https://www.fussball.de/export.fontface/-/format/woff/id/{obfuscation_id}/type/font"
+    resp = requests.get(font_url, timeout=10)
+    resp.raise_for_status()
+    content = resp.content
+    fd, tmp_path = tempfile.mkstemp(prefix=f"font_{obfuscation_id}_", suffix=".woff")
+    with os.fdopen(fd, "wb") as f:  # noqa: PTH123
+        f.write(content)
+    return tmp_path, True
+
+
+def _local_dir_font_fetcher_factory(font_dir: str) -> FontFetcher:
+    def _fetch(obfuscation_id: str) -> FontFetchResult:
+        candidate = os.path.join(font_dir, obfuscation_id)
+        if not os.path.exists(candidate):  # noqa: PTH110
+            raise FileNotFoundError(
+                f"Local font '{candidate}' not found for id '{obfuscation_id}'"
+            )
+        return candidate, False
+
+    return _fetch
+
 
 class Deobfuscator:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        font_dir: str | None = None,
+        font_fetcher: FontFetcher | None = None,
+    ) -> None:
         self.logger = logging.getLogger("Deobfuscator")
+        if font_fetcher is not None:
+            self.font_fetcher = font_fetcher
+        elif font_dir is not None:
+            self.font_fetcher = _local_dir_font_fetcher_factory(font_dir)
+        else:
+            self.font_fetcher = _network_font_fetcher
 
     def build_char_mapping(self, font_filename: str) -> dict[str, str]:
         glyph_to_char = {
@@ -213,11 +251,7 @@ class Deobfuscator:
                     spans_by_id[span_id] = []
                 spans_by_id[span_id].append(span)
         for obfuscation_id, spans in spans_by_id.items():
-            font_url = f"https://www.fussball.de/export.fontface/-/format/woff/id/{obfuscation_id}/type/font"
-            font_file = requests.get(font_url)
-            font_filename = f"font_{obfuscation_id}.woff"
-            with open(font_filename, "wb") as f:
-                f.write(font_file.content)
+            font_filename, remove_after = self.font_fetcher(obfuscation_id)
             char_mapping = self.build_char_mapping(font_filename)
             try:
                 for span in spans:
@@ -240,8 +274,13 @@ class Deobfuscator:
                         for new_content in new_contents:
                             span.append(new_content)
             finally:
-                if os.path.exists(font_filename):
-                    os.remove(font_filename)
+                if remove_after and os.path.exists(font_filename):  # noqa: PTH110
+                    try:
+                        os.remove(font_filename)  # noqa: PTH116
+                    except OSError:
+                        self.logger.debug(
+                            "Failed to remove temp font file %s", font_filename
+                        )
         return str(soup)
 
     def _replace_chars(self, text: str, char_mapping: dict[str, str]) -> str:

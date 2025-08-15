@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -10,8 +11,9 @@ from fussball_crawler.deobfuscator import Deobfuscator
 
 class TestFussballDeDeobfuscator(unittest.TestCase):
     def setUp(self):
-        self.deobfuscator = Deobfuscator()
-        data_dir = Path(__file__).parent.parent / "data"
+        fonts_dir = Path(__file__).parent / "data" / "fonts"
+        self.deobfuscator = Deobfuscator(font_dir=str(fonts_dir))
+        data_dir = Path(__file__).parent / "data" / "files"
 
         # Load obfuscated HTML (contains &#xE characters)
         obfuscated_file = data_dir / "fussball_de_original.html"
@@ -35,8 +37,12 @@ class TestFussballDeDeobfuscator(unittest.TestCase):
         if self.expected_html is None:
             self.skipTest("Expected HTML file not found")
 
-        # Act
-        result = self.deobfuscator.deobfuscate_html(self.obfuscated_html)
+        # Patch requests.get so no network is performed even if code path is hit
+        with patch("fussball_crawler.deobfuscator.requests.get") as mock_get:
+            mock_get.side_effect = AssertionError(
+                "Network call should not occur when using local fonts"
+            )
+            result = self.deobfuscator.deobfuscate_html(self.obfuscated_html)
 
         # Assert - basic checks
         self.assertIsInstance(result, str)

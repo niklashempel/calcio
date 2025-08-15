@@ -56,4 +56,3 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "--cov=src/fussball_crawler --cov-report=html --cov-report=term-missing"
