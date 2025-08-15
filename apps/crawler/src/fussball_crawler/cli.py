@@ -60,7 +60,10 @@ def find_clubs_command(args: argparse.Namespace) -> int:
 
         try:
             logger.info(f"Finding clubs for postal code: {postal_code}")
-            find_clubs_main(postal_code)
+            find_clubs_main(
+                postal_code=postal_code,
+                calio_api_url=args.api_url,
+            )
             total_processed += 1
         except KeyboardInterrupt:
             logger.info("Operation cancelled by user")
@@ -157,6 +160,11 @@ Examples:
         "postal_code",
         nargs="?",  # Make postal_code optional
         help="German postal code (5 digits, e.g., 01099 for Dresden). If not provided, reads from stdin.",
+    )
+    find_clubs_parser.add_argument(
+        "--api-url",
+        default="http://localhost:5149",
+        help="Calcio api endpoint",
     )
     find_clubs_parser.set_defaults(func=find_clubs_command)
 

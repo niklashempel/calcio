@@ -5,9 +5,11 @@ from .logger import get_logger, setup_logging
 from .scraper import fetch_all_clubs_for_post_code
 
 
-def main(postal_code: str) -> None:
+def main(postal_code: str, calio_api_url: str) -> None:
     setup_logging()
     logger = get_logger(__name__)
+
+    api_client.get_client(calio_api_url)
 
     api_available = api_client.available()
     if not api_available:
@@ -52,4 +54,4 @@ def main(postal_code: str) -> None:
         if not club_name:
             logger.error("Club name is empty for external_id: %s", external_id)
             continue
-        api_client.insert_club(external_id, club_name)
+        api_client.insert_club(external_id, club_name, postal_code)
