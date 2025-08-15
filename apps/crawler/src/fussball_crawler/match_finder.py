@@ -11,16 +11,27 @@ def find_lat_long_online(
     geocoder_url: str, location: str
 ) -> tuple[float, float] | None:
     logger = get_logger(__name__)
-    payload = {"q": location}
-    params = urlencode(payload, quote_via=quote)
-    r = requests.get(geocoder_url, params=params)
-    data = r.json()
-    if len(data["features"]) == 0:
+
+    def _fetch(params_dict: dict) -> list[dict]:
+        params = urlencode(params_dict, quote_via=quote)
+        resp = requests.get(geocoder_url, params=params)
+        try:
+            data = resp.json()
+        except ValueError:
+            return []
+        return data.get("features", [])
+
+    # First try with osm_tag filter, then fallback
+    features = _fetch({"q": location, "osm_tag": "leisure"}) or _fetch({"q": location})
+    if not features:
         logger.info("Location not found: " + location)
         return None
 
-    point = data["features"][0]["geometry"]["coordinates"]
-    return (point[1], point[0])
+    coords = features[0].get("geometry", {}).get("coordinates")
+    if not coords or len(coords) < 2:
+        logger.info("Invalid geometry for location: " + location)
+        return None
+    return (coords[1], coords[0])
 
 
 def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) -> None:
