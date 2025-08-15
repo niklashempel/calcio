@@ -181,6 +181,12 @@ namespace Api.Migrations
                 column: "venue_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_matches_url",
+                table: "matches",
+                column: "url",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_teams_club_id",
                 table: "teams",
                 column: "club_id");

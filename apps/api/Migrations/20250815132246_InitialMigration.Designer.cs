@@ -147,6 +147,9 @@ namespace Api.Migrations
 
                     b.HasIndex("VenueId");
 
+                    b.HasIndex("Url")
+                        .IsUnique();
+
                     b.ToTable("matches");
                 });
 
