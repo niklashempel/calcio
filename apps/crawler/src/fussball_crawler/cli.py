@@ -93,7 +93,12 @@ def find_matches_command(args: argparse.Namespace) -> int:
 
     try:
         logger.info(f"Finding matches for all clubs from {from_date} to {to_date}...")
-        find_matches_main(from_date=from_date, to_date=to_date)
+        find_matches_main(
+            from_date=from_date,
+            to_date=to_date,
+            geocoder_url=args.geocoder_url,
+            calio_api_url=args.api_url,
+        )
         logger.info("Match finding completed successfully")
         return 0
     except KeyboardInterrupt:
@@ -117,8 +122,8 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Create main parser
     parser = argparse.ArgumentParser(
-        prog="fussball-crawler",
-        description="Tools for crawling football data from fussball.de",
+        prog="crawler",
+        description="Tools for crawling data from fussball.de",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[parent_parser],
         epilog="""
@@ -129,6 +134,7 @@ Examples:
   %(prog)s find-matches                   # Find matches for all clubs (today's date)
   %(prog)s find-matches --verbose         # Find matches with verbose logging
   %(prog)s find-matches --from-date 2025-08-01 --to-date 2025-08-31  # Custom date range
+  %(prog)s find-matches --geocoder-url http://localhost:2322/api --api-url http://localhost:5149/api  # Use custom API endpoints
   cat postcodes.csv | %(prog)s find-clubs # Process multiple postal codes from stdin
         """,
     )
@@ -170,6 +176,16 @@ Examples:
         "--to-date",
         default=today,
         help="End date for match search (YYYY-MM-DD format, default: today)",
+    )
+    find_matches_parser.add_argument(
+        "--geocoder-url",
+        default="http://localhost:2322/api",
+        help="Geocoder api endpoint",
+    )
+    find_matches_parser.add_argument(
+        "--api-url",
+        default="http://localhost:5149/api",
+        help="Calcio api endpoint",
     )
     find_matches_parser.set_defaults(func=find_matches_command)
 

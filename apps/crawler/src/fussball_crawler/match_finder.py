@@ -7,11 +7,13 @@ from . import scraper as fussball_scraper
 from .logger import get_logger, setup_logging
 
 
-def find_lat_long_online(location: str) -> tuple[float, float] | None:
+def find_lat_long_online(
+    geocoder_url: str, location: str
+) -> tuple[float, float] | None:
     logger = get_logger(__name__)
     payload = {"q": location}
     params = urlencode(payload, quote_via=quote)
-    r = requests.get("http://localhost:2322/api", params=params)
+    r = requests.get(geocoder_url, params=params)
     data = r.json()
     if len(data["features"]) == 0:
         logger.info("Location not found: " + location)
@@ -21,12 +23,12 @@ def find_lat_long_online(location: str) -> tuple[float, float] | None:
     return (point[1], point[0])
 
 
-def main(from_date: str | None, to_date: str | None) -> None:
-    if not from_date or not to_date:
-        return
-
+def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) -> None:
     logger = get_logger(__name__)
     setup_logging()
+
+    # Initialize API client with the provided URL
+    api_client.get_client(calio_api_url)
 
     api_available = api_client.available()
     if not api_available:
@@ -55,7 +57,7 @@ def main(from_date: str | None, to_date: str | None) -> None:
         for match in matches:
             venue_id = api_client.find_venue_location(match["address"])
             if venue_id is None:
-                coordinates = find_lat_long_online(match["address"])
+                coordinates = find_lat_long_online(geocoder_url, match["address"])
                 api_client.insert_venue(match["address"], coordinates=coordinates)
                 venue_id = api_client.get_venue_id_by_address(match["address"])
 
