@@ -47,14 +47,14 @@ export LOG_LEVEL=DEBUG  # or INFO, WARNING, ERROR, CRITICAL
 pytest
 ```
 
+### Code Linting
+
+```bash
+ruff check
+```
+
 ### Code Formatting
 
 ```bash
-black src/ tests/
-```
-
-### Type Checking
-
-```bash
-mypy src/
+ruff format
 ```
