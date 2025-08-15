@@ -184,7 +184,7 @@ Examples:
     )
     find_matches_parser.add_argument(
         "--api-url",
-        default="http://localhost:5149/api",
+        default="http://localhost:5149",
         help="Calcio api endpoint",
     )
     find_matches_parser.set_defaults(func=find_matches_command)

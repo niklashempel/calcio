@@ -60,11 +60,19 @@
       "name": "Python: Debug Match Finder",
       "type": "debugpy",
       "request": "launch",
-      "module": "fussball_crawler.match_finder",
-      "cwd": "${workspaceFolder}/apps/crawler/src",
+      "program": "${workspaceFolder}/apps/crawler/crawler",
+      "args": [
+        "find-matches",
+        "--from-date",
+        "2025-08-01",
+        "--to-date",
+        "2025-08-15",
+        "--verbose"
+      ],
+      "cwd": "${workspaceFolder}/apps/crawler",
       "console": "integratedTerminal",
       "env": {
-        "LOG_LEVEL": "INFO",
+        "LOG_LEVEL": "DEBUG",
         "PYTHONPATH": "${workspaceFolder}/apps/crawler/src"
       },
       "justMyCode": false,

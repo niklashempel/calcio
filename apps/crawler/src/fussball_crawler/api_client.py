@@ -86,7 +86,7 @@ def insert_club(external_id: str, name: str) -> None:
     """Insert club using API (for compatibility)"""
     try:
         response = _get_initialized_client()._post(
-            "/clubs/find-or-create", {"externalId": external_id, "name": name}
+            "/api/clubs/find-or-create", {"externalId": external_id, "name": name}
         )
         if response.status_code in [200, 201]:
             logger.debug(f"{external_id} - Club upserted successfully via API")
@@ -104,7 +104,7 @@ def insert_venue(address: str, coordinates: tuple | None = None) -> None:
             data["latitude"] = coordinates[0]
             data["longitude"] = coordinates[1]
 
-        response = _get_initialized_client()._post("/venues/find-or-create", data)
+        response = _get_initialized_client()._post("/api/venues/find-or-create", data)
         if response.status_code in [200, 201]:
             logger.debug(f"{address} - Venue upserted successfully via API")
         else:
@@ -118,7 +118,7 @@ def insert_venue(address: str, coordinates: tuple | None = None) -> None:
 def get_club_id_by_external_id(external_id: str) -> int | None:
     """Get club ID by external ID using API"""
     try:
-        response = _get_initialized_client()._get(f"/clubs/find/{external_id}/id")
+        response = _get_initialized_client()._get(f"/api/clubs/find/{external_id}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -131,7 +131,7 @@ def find_or_create_club(external_id: str, name: str) -> int | None:
     """Find existing club or create new one using API"""
     try:
         response = _get_initialized_client()._post(
-            "/clubs/find-or-create", {"externalId": external_id, "name": name}
+            "/api/clubs/find-or-create", {"externalId": external_id, "name": name}
         )
         if response.status_code in [200, 201]:
             club_data = response.json()
@@ -145,7 +145,7 @@ def find_or_create_club(external_id: str, name: str) -> int | None:
 def get_age_group_id_by_name(name: str) -> int | None:
     """Get age group ID by name using API"""
     try:
-        response = _get_initialized_client()._get(f"/age-groups/find/{name}/id")
+        response = _get_initialized_client()._get(f"/api/age-groups/find/{name}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -157,7 +157,7 @@ def get_age_group_id_by_name(name: str) -> int | None:
 def get_competition_id_by_name(name: str) -> int | None:
     """Get competition ID by name using API"""
     try:
-        response = _get_initialized_client()._get(f"/competitions/find/{name}/id")
+        response = _get_initialized_client()._get(f"/api/competitions/find/{name}/id")
         if response.status_code == 200:
             return response.json()
         return None
@@ -170,7 +170,7 @@ def insert_age_group(name: str) -> None:
     """Insert age group using API"""
     try:
         response = _get_initialized_client()._post(
-            "/age-groups/find-or-create", {"name": name}
+            "/api/age-groups/find-or-create", {"name": name}
         )
         if response.status_code in [200, 201]:
             logger.debug(f"{name} - Age group upserted successfully via API")
@@ -186,7 +186,7 @@ def insert_competition(name: str) -> None:
     """Insert competition using API"""
     try:
         response = _get_initialized_client()._post(
-            "/competitions/find-or-create", {"name": name}
+            "/api/competitions/find-or-create", {"name": name}
         )
         if response.status_code in [200, 201]:
             logger.debug(f"{name} - Competition upserted successfully via API")
@@ -204,7 +204,7 @@ def find_or_create_team(
     """Find existing team or create new one using API"""
     try:
         response = _get_initialized_client()._post(
-            "/teams/find-or-create",
+            "/api/teams/find-or-create",
             {
                 "name": team_name,
                 "clubExternalId": club_external_id,
@@ -238,7 +238,7 @@ def insert_match(
         time_str = time.isoformat() if hasattr(time, "isoformat") else str(time)
 
         response = _get_initialized_client()._post(
-            "/matches",
+            "/api/matches",
             {
                 "url": url,
                 "time": time_str,
@@ -262,7 +262,7 @@ def insert_match(
 def get_clubs() -> list[tuple[Any, ...]]:
     """Get all clubs using API"""
     try:
-        response = _get_initialized_client()._get("/clubs")
+        response = _get_initialized_client()._get("/api/clubs")
         if response.status_code == 200:
             clubs_data = response.json()
             # Return tuples of external_id to match original function signature
@@ -286,7 +286,7 @@ def get_venue_id_by_address(address: str) -> int | None:
     """Get venue ID by address using API"""
     try:
         response = _get_initialized_client()._get(
-            f"/venues/find/by-address/{address}/id"
+            f"/api/venues/find/by-address/{address}/id"
         )
         if response.status_code == 200:
             return response.json()
