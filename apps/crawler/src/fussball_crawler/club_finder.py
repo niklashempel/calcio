@@ -1,15 +1,14 @@
-import sys
-
 from bs4 import BeautifulSoup, Tag
 
 from . import api_client
 from .logger import get_logger, setup_logging
 from .scraper import fetch_all_clubs_for_post_code
 
-logger = get_logger(__name__)
-
 
 def main(postal_code: str) -> None:
+    setup_logging()
+    logger = get_logger(__name__)
+
     api_available = api_client.available()
     if not api_available:
         return
@@ -54,13 +53,3 @@ def main(postal_code: str) -> None:
             logger.error("Club name is empty for external_id: %s", external_id)
             continue
         api_client.insert_club(external_id, club_name)
-
-
-if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        print(f"Usage: python3 {sys.argv[0]} <post_code>")
-    else:
-        setup_logging()
-        logger = get_logger(__name__)
-        input_file = sys.argv[1]
-        main(input_file)

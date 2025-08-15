@@ -4,16 +4,16 @@ Entry point script for the fussball crawler CLI.
 This script can be run directly or used as a module.
 """
 
-import sys
 import os
+import sys
 
 # Add the src directory to Python path so we can import fussball_crawler
 current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.join(current_dir, 'src')
+src_dir = os.path.join(current_dir, "src")
 if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
-from fussball_crawler.cli import main
+from fussball_crawler.cli import main  # noqa: E402
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

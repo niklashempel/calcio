@@ -8,9 +8,11 @@ import argparse
 import os
 import re
 import sys
+from datetime import date
 
 from .club_finder import main as find_clubs_main
 from .logger import get_logger, setup_logging
+from .match_finder import main as find_matches_main
 
 
 def validate_postal_code(postal_code: str) -> bool:
@@ -73,6 +75,35 @@ def find_clubs_command(args: argparse.Namespace) -> int:
     return 1 if total_errors > 0 else 0
 
 
+def find_matches_command(args: argparse.Namespace) -> int:
+    """Handle the find-matches command."""
+    logger = get_logger(__name__)
+
+    # Handle date logic: if only one date is passed or none, set both to today
+    today = date.today().strftime("%Y-%m-%d")
+
+    if not args.from_date or not args.to_date:
+        # No dates provided, use today for both
+        from_date = today
+        to_date = today
+    else:
+        # Both dates provided by user
+        from_date = args.from_date
+        to_date = args.to_date
+
+    try:
+        logger.info(f"Finding matches for all clubs from {from_date} to {to_date}...")
+        find_matches_main(from_date=from_date, to_date=to_date)
+        logger.info("Match finding completed successfully")
+        return 0
+    except KeyboardInterrupt:
+        logger.info("Operation cancelled by user")
+        return 130
+    except Exception as e:
+        logger.error(f"Error during match finding: {e}")
+        return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
     # Create parent parser for shared arguments
@@ -95,9 +126,14 @@ Examples:
   %(prog)s find-clubs 01099               # Find clubs in Dresden area
   %(prog)s find-clubs 10115               # Find clubs in Berlin area
   %(prog)s find-clubs 80331 --verbose     # Find clubs with verbose logging
+  %(prog)s find-matches                   # Find matches for all clubs (today's date)
+  %(prog)s find-matches --verbose         # Find matches with verbose logging
+  %(prog)s find-matches --from-date 2025-08-01 --to-date 2025-08-31  # Custom date range
   cat postcodes.csv | %(prog)s find-clubs # Process multiple postal codes from stdin
         """,
     )
+
+    today = date.today().strftime("%Y-%m-%d")
 
     # Subcommands
     subparsers = parser.add_subparsers(
@@ -117,6 +153,25 @@ Examples:
         help="German postal code (5 digits, e.g., 01099 for Dresden). If not provided, reads from stdin.",
     )
     find_clubs_parser.set_defaults(func=find_clubs_command)
+
+    # find-matches subcommand - inherits from parent parser
+    find_matches_parser = subparsers.add_parser(
+        "find-matches",
+        help="Find matches for all clubs",
+        description="Search for matches for all clubs in the database",
+        parents=[parent_parser],
+    )
+    find_matches_parser.add_argument(
+        "--from-date",
+        default=today,
+        help="Start date for match search (YYYY-MM-DD format, default: today)",
+    )
+    find_matches_parser.add_argument(
+        "--to-date",
+        default=today,
+        help="End date for match search (YYYY-MM-DD format, default: today)",
+    )
+    find_matches_parser.set_defaults(func=find_matches_command)
 
     return parser
 

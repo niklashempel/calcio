@@ -6,14 +6,9 @@ from . import api_client
 from . import scraper as fussball_scraper
 from .logger import get_logger, setup_logging
 
-setup_logging()
-logger = get_logger(__name__)
-
-from_date = "2025-07-25"
-to_date = "2025-08-06"
-
 
 def find_lat_long_online(location: str) -> tuple[float, float] | None:
+    logger = get_logger(__name__)
     payload = {"q": location}
     params = urlencode(payload, quote_via=quote)
     r = requests.get("http://localhost:2322/api", params=params)
@@ -26,7 +21,13 @@ def find_lat_long_online(location: str) -> tuple[float, float] | None:
     return (point[1], point[0])
 
 
-def main() -> None:
+def main(from_date: str | None, to_date: str | None) -> None:
+    if not from_date or not to_date:
+        return
+
+    logger = get_logger(__name__)
+    setup_logging()
+
     api_available = api_client.available()
     if not api_available:
         return
@@ -124,7 +125,3 @@ def main() -> None:
                     match["url"], match["time"], home_id, away_id, v_id, age_id, comp_id
                 )
     logger.info("Finished processing all clubs.")
-
-
-if __name__ == "__main__":
-    main()
