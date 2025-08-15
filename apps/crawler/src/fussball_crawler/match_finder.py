@@ -126,7 +126,7 @@ def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) ->
                 age_id: int = age_group_id  # type: ignore
                 comp_id: int = competition_id  # type: ignore
 
-                api_client.insert_match(
+                api_client.upsert_match(
                     match["url"], match["time"], home_id, away_id, v_id, age_id, comp_id
                 )
     logger.info("Finished processing all clubs.")

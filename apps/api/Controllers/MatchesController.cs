@@ -19,19 +19,19 @@ public class MatchesController : ControllerBase
     }
 
     /// <summary>
-    /// Create a new match
+    /// Upsert a new match
     /// </summary>
-    /// <param name="request">Match creation request</param>
-    /// <returns>The created match</returns>
+    /// <param name="request">Match upsert request</param>
+    /// <returns>The created or updated match</returns>
     [HttpPost]
     [ProducesResponseType(typeof(MatchDto), 201)]
     [ProducesResponseType(400)]
-    public async Task<ActionResult<MatchDto>> CreateMatch([FromBody] CreateMatchRequestDto request)
+    public async Task<ActionResult<MatchDto>> UpsertMatch([FromBody] UpsertMatchRequestDto request)
     {
         try
         {
-            var match = await _matchService.CreateMatchAsync(request);
-            return CreatedAtAction(nameof(CreateMatch), new { id = match.Id }, match);
+            var match = await _matchService.UpsertMatchAsync(request);
+            return Ok(match);
         }
         catch (ArgumentException ex)
         {

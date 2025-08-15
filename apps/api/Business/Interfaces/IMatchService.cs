@@ -6,7 +6,7 @@ namespace Api.Business.Interfaces;
 
 public interface IMatchService
 {
-    Task<Match> CreateMatchAsync(CreateMatchRequestDto request);
+    Task<Match> UpsertMatchAsync(UpsertMatchRequestDto request);
 
     Task<IEnumerable<MatchDto>> GetMatchesAsync(GetMatchesRequestDto request);
 }

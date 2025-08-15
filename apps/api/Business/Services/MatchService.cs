@@ -17,46 +17,85 @@ public class MatchService : IMatchService
         _context = context;
     }
 
-    public async Task<Match> CreateMatchAsync(CreateMatchRequestDto request)
+    public async Task<Match> UpsertMatchAsync(UpsertMatchRequestDto request)
     {
         try
         {
-            // Parse the time string and ensure it's in UTC
-            if (!DateTime.TryParse(request.Time, out DateTime matchTime))
+            var matchTime = ParseMatchTime(request);
+
+            var url = request.Url;
+            var match = await _context.Matches.FirstOrDefaultAsync(m => m.Url == url);
+            if (match == null)
             {
-                throw new ArgumentException("Invalid time format");
+                match = new Match
+                {
+                    Url = url,
+                    Time = matchTime,
+                    HomeTeamId = request.HomeTeamId,
+                    AwayTeamId = request.AwayTeamId,
+                    VenueId = request.VenueId,
+                    AgeGroupId = request.AgeGroupId,
+                    CompetitionId = request.CompetitionId
+                };
+                _context.Matches.Add(match);
+            }
+            else
+            {
+                match.Time = matchTime;
+                match.HomeTeamId = request.HomeTeamId;
+                match.AwayTeamId = request.AwayTeamId;
+                match.VenueId = request.VenueId;
+                match.AgeGroupId = request.AgeGroupId;
+                match.CompetitionId = request.CompetitionId;
+                _context.Matches.Update(match);
             }
 
-            // If the DateTime doesn't have a timezone specified, assume it's UTC
-            if (matchTime.Kind == DateTimeKind.Unspecified)
+            try
             {
-                matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
             }
-            // If it's local time, convert to UTC
-            else if (matchTime.Kind == DateTimeKind.Local)
+            catch (DbUpdateException dbEx)
             {
-                matchTime = matchTime.ToUniversalTime();
+                // Handle rare race condition where another insert happened with same URL between lookup and save
+                if (!string.IsNullOrWhiteSpace(url))
+                {
+                    var existing = await _context.Matches.AsNoTracking().FirstOrDefaultAsync(m => m.Url == url);
+                    if (existing != null)
+                    {
+                        return existing;
+                    }
+                }
+                throw new InvalidOperationException($"Database error during match upsert: {dbEx.Message}", dbEx);
             }
 
-            var match = new Match
-            {
-                Url = request.Url,
-                Time = matchTime,
-                HomeTeamId = request.HomeTeamId,
-                AwayTeamId = request.AwayTeamId,
-                VenueId = request.VenueId,
-                AgeGroupId = request.AgeGroupId,
-                CompetitionId = request.CompetitionId
-            };
-
-            _context.Matches.Add(match);
-            await _context.SaveChangesAsync();
             return match;
         }
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Error creating match: {ex.Message}", ex);
         }
+    }
+
+    private static DateTime ParseMatchTime(UpsertMatchRequestDto request)
+    {
+        // Parse the time string and ensure it's in UTC
+        if (!DateTime.TryParse(request.Time, out DateTime matchTime))
+        {
+            throw new ArgumentException("Invalid time format");
+        }
+
+        // If the DateTime doesn't have a timezone specified, assume it's UTC
+        if (matchTime.Kind == DateTimeKind.Unspecified)
+        {
+            matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Utc);
+        }
+        // If it's local time, convert to UTC
+        else if (matchTime.Kind == DateTimeKind.Local)
+        {
+            matchTime = matchTime.ToUniversalTime();
+        }
+
+        return matchTime;
     }
 
     public async Task<IEnumerable<MatchDto>> GetMatchesAsync(GetMatchesRequestDto request)

@@ -224,7 +224,7 @@ def find_or_create_team(
         return None
 
 
-def insert_match(
+def upsert_match(
     url: str,
     time: Any,
     home_team_id: int,
@@ -233,7 +233,7 @@ def insert_match(
     age_group_id: int,
     competition_id: int,
 ) -> None:
-    """Insert match using API"""
+    """Upsert match using API"""
     try:
         # Convert time to ISO format if it's not already a string
         time_str = time.isoformat() if hasattr(time, "isoformat") else str(time)

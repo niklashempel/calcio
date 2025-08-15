@@ -1,6 +1,6 @@
 namespace Api.DTOs;
 
-public class CreateMatchRequestDto
+public class UpsertMatchRequestDto
 {
     public string Url { get; set; } = string.Empty;
     public string Time { get; set; } = string.Empty;
