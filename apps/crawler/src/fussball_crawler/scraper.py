@@ -110,12 +110,6 @@ def get_matches(table: Tag) -> list[dict[str, Any]]:
             logger.warning("Club row elements are not Tags")
             continue
 
-        url_element = club_row[0].find("a")  # type: ignore[union-attr]
-        if not url_element or not isinstance(url_element, Tag):
-            logger.warning("No URL found for match")
-            continue
-        url = url_element["href"]
-
         # Extract home team data (name, club_id, team_id)
         home_name_element = club_row[0].find("div", {"class": "club-name"})  # type: ignore[union-attr]
         home_logo_element = club_row[0].find("span", {"data-responsive-image": True})  # type: ignore[union-attr]
@@ -220,6 +214,12 @@ def get_matches(table: Tag) -> list[dict[str, Any]]:
         # except ValueError:
         #     logger.warning(f"Invalid score format for match: {home} vs {away} on {date} at {time}")
         #     continue
+
+        url_element = score.find("a")  # type: ignore[union-attr]
+        if not url_element or not isinstance(url_element, Tag):
+            logger.warning("No URL found for match")
+            continue
+        url = url_element["href"]
 
         # Find div that starts with 'Spielstätte:'
         venue_row_element = rows[i + 4]
