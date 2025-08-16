@@ -227,8 +227,8 @@ def find_or_create_team(
 def upsert_match(
     url: str,
     time: Any,
-    home_team_id: int,
-    away_team_id: int,
+    home_team_id: int | None,
+    away_team_id: int | None,
     venue_id: int,
     age_group_id: int,
     competition_id: int,
