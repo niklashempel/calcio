@@ -78,23 +78,37 @@ public class MatchService : IMatchService
 
     private static DateTime ParseMatchTime(UpsertMatchRequestDto request)
     {
-        // Parse the time string and ensure it's in UTC
+        // Parse the time string; support ISO8601 with or without offset.
         if (!DateTime.TryParse(request.Time, out DateTime matchTime))
         {
             throw new ArgumentException("Invalid time format");
         }
 
-        // If the DateTime doesn't have a timezone specified, assume it's UTC
+        // If the DateTime has no kind (no offset supplied), interpret it as Europe/Berlin local time.
         if (matchTime.Kind == DateTimeKind.Unspecified)
         {
-            matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Utc);
+            try
+            {
+                // Europe/Berlin daylight saving aware conversion
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+                matchTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(matchTime, DateTimeKind.Unspecified), tz);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                // Fallback: treat as local machine time
+                matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Local).ToUniversalTime();
+            }
+            catch (InvalidTimeZoneException)
+            {
+                matchTime = DateTime.SpecifyKind(matchTime, DateTimeKind.Local).ToUniversalTime();
+            }
         }
-        // If it's local time, convert to UTC
         else if (matchTime.Kind == DateTimeKind.Local)
         {
+            // Convert local to UTC
             matchTime = matchTime.ToUniversalTime();
         }
-
+        // If already UTC, keep as is
         return matchTime;
     }
 

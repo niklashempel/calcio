@@ -1,11 +1,17 @@
-"""
-API client to replace direct database operations.
-This module provides the same interface as db.py but uses HTTP API calls instead.
-"""
+"""API client to replace direct database operations using HTTP endpoints."""
 
+from __future__ import annotations
+
+import contextlib
+from datetime import datetime
 from typing import Any
 
 import requests
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
 
 from .logger import get_logger
 
@@ -235,8 +241,15 @@ def upsert_match(
 ) -> None:
     """Upsert match using API"""
     try:
-        # Convert time to ISO format if it's not already a string
-        time_str = time.isoformat() if hasattr(time, "isoformat") else str(time)
+        # Normalize time: if datetime and naive, assume Europe/Berlin and attach tz
+        if isinstance(time, datetime):
+            dt = time
+            if dt.tzinfo is None and ZoneInfo is not None:
+                with contextlib.suppress(Exception):
+                    dt = dt.replace(tzinfo=ZoneInfo("Europe/Berlin"))
+            time_str = dt.isoformat()
+        else:
+            time_str = str(time)
 
         response = _get_initialized_client()._post(
             "/api/matches",
