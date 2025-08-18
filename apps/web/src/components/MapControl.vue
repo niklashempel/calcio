@@ -24,6 +24,8 @@ import LeafletMap from './LeafletMap.vue';
 const { matches, loading, load } = useMatches();
 const markers = ref<ReturnType<typeof buildMarkers>>([]);
 const currentBounds = ref<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+const DEBOUNCE_MS = 300;
 
 function onInitialBounds(b: { minLat: number; maxLat: number; minLng: number; maxLng: number }) {
   currentBounds.value = b;
@@ -32,7 +34,10 @@ function onInitialBounds(b: { minLat: number; maxLat: number; minLng: number; ma
 
 function onBoundsChanged(b: { minLat: number; maxLat: number; minLng: number; maxLng: number }) {
   currentBounds.value = b;
-  loadMatches();
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    loadMatches();
+  }, DEBOUNCE_MS);
 }
 
 async function loadMatches() {
