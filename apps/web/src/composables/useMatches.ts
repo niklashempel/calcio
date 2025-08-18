@@ -37,14 +37,19 @@ export function useMatches() {
     for (const m of matches.value) {
       const v = m.venue;
       if (!v?.id || !v.latitude || !v.longitude) continue;
-      if (!temp[v.id]) temp[v.id] = [];
-      temp[v.id].push(m);
+      if (!temp[v.id]) {
+        temp[v.id] = [];
+      }
+      temp[v.id]!.push(m);
     }
-    for (const [idStr, arr] of Object.entries(temp)) {
+    for (const idStr of Object.keys(temp)) {
+      const arr = temp[Number(idStr)];
+      if (!arr || arr.length === 0) continue;
+      const first = arr[0];
+      if (!first || !first.venue) continue;
       const id = Number(idStr);
-      const venue = arr[0].venue;
       const grouped = groupMatches(arr);
-      byVenue[id] = { ...grouped, venue, count: arr.length };
+      byVenue[id] = { ...grouped, venue: first.venue, count: arr.length };
     }
     return byVenue;
   }

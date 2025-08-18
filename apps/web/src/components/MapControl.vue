@@ -119,6 +119,9 @@ const loadMatches = async () => {
 
     // Add one marker per venue with list of matches (grouped: Today, Upcoming, Past)
   for (const [, venueMatches] of matchesByVenue.entries()) {
+      if (!venueMatches[0]) {
+        continue
+      }
       const v = venueMatches[0].venue!;
       if (!markersLayer) continue;
       const marker = L.marker([v.latitude!, v.longitude!]);
