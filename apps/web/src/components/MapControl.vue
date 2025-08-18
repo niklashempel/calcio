@@ -22,7 +22,7 @@ import { ref } from 'vue';
 import LeafletMap from './LeafletMap.vue';
 
 const { matches, loading, load } = useMatches();
-const markers = ref<{ id: number; lat: number; lng: number; popupHtml: string }[]>([]);
+const markers = ref<ReturnType<typeof buildMarkers>>([]);
 const currentBounds = ref<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
 
 function onInitialBounds(b: { minLat: number; maxLat: number; minLng: number; maxLng: number }) {

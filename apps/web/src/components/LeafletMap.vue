@@ -3,15 +3,19 @@
 </template>
 
 <script setup lang="ts">
+import type { MatchDto } from '@/types/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { createApp, onMounted, onUnmounted, ref, watch, type App } from 'vue';
+import MatchPopup from './MatchPopup.vue';
 
 interface MarkerInput {
   id: number;
   lat: number;
   lng: number;
-  popupHtml: string;
+  popupHtml?: string;
+  venueAddress?: string;
+  matches?: MatchDto[];
 }
 
 const props = defineProps<{ markers: MarkerInput[] }>();
@@ -23,6 +27,7 @@ const emit = defineEmits<{
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let markersLayer: L.LayerGroup | null = null;
+const popupApps = new Map<number, { app: App; el: HTMLElement }>();
 let skipNextMoveEnd = false;
 
 // Fix Leaflet default icon paths (CDN)
@@ -84,10 +89,32 @@ watch(
   () => props.markers,
   (list) => {
     if (!map || !markersLayer) return;
+    // Unmount previous mounted popup apps
+    for (const entry of popupApps.values()) entry.app.unmount();
+    popupApps.clear();
     markersLayer.clearLayers();
     for (const m of list) {
       const marker = L.marker([m.lat, m.lng]);
-      marker.bindPopup(m.popupHtml, { maxWidth: 380 });
+      if (m.popupHtml) {
+        marker.bindPopup(m.popupHtml, { maxWidth: 380 });
+      } else if (m.matches) {
+        const container = document.createElement('div');
+        marker.bindPopup(container, { maxWidth: 380 });
+        marker.on('popupopen', () => {
+          if (!popupApps.has(m.id)) {
+            const app = createApp(MatchPopup, { matches: m.matches, venueAddress: m.venueAddress });
+            app.mount(container);
+            popupApps.set(m.id, { app, el: container });
+          }
+        });
+        marker.on('popupclose', () => {
+          const rec = popupApps.get(m.id);
+          if (rec) {
+            rec.app.unmount();
+            popupApps.delete(m.id);
+          }
+        });
+      }
       markersLayer.addLayer(marker);
     }
   },
