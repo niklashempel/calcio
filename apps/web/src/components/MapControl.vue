@@ -32,6 +32,8 @@ const matches = ref<MatchDto[]>([]);
 
 let map: L.Map | null = null;
 let markersLayer: L.LayerGroup | null = null;
+// Flag to skip the next moveend event triggered by Leaflet auto-panning when opening a popup
+let skipNextMoveEnd = false;
 
 const initMap = () => {
   if (!mapContainer.value) return;
@@ -51,8 +53,24 @@ const initMap = () => {
   // Load initial matches
   loadMatches();
 
-  // Add event listener for map movement
-  map.on('moveend', loadMatches);
+  // Add intelligent event listener for map movement
+  // We skip the immediate moveend after a popup open (Leaflet auto-pans to show popup)
+  map.on('moveend', () => {
+    if (skipNextMoveEnd) {
+      skipNextMoveEnd = false;
+      return; // Don't reload; prevents popup from closing
+    }
+    loadMatches();
+  });
+
+  map.on('popupopen', () => {
+    // Next moveend is likely due to auto-pan -> skip reload
+    skipNextMoveEnd = true;
+  });
+  map.on('popupclose', () => {
+    // After closing allow normal reloads
+    skipNextMoveEnd = false;
+  });
 };
 
 const loadMatches = async () => {
