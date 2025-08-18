@@ -12,7 +12,7 @@ on:
 
 jobs:
   check:
-    name: Type & Format Checks
+    name: Check and test
     runs-on: ubuntu-latest
     defaults:
       run:
