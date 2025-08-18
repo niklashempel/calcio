@@ -17,9 +17,7 @@
 
 <script setup lang="ts">
 import { useMatches } from '@/composables/useMatches';
-import type { MatchDto } from '@/types/api';
-import { formatMatch } from '@/utils/formatting';
-import { sortMatchesChronologically } from '@/utils/grouping';
+import { buildMarkers } from '@/utils/markers';
 import { ref } from 'vue';
 import LeafletMap from './LeafletMap.vue';
 
@@ -57,58 +55,7 @@ async function loadMatches() {
     };
     await load(request);
 
-    const matchesByVenue = new Map<number, MatchDto[]>();
-    for (const m of matches.value) {
-      const vId = m.venue?.id;
-      if (!vId || !m.venue?.latitude || !m.venue.longitude) continue;
-      if (!matchesByVenue.has(vId)) matchesByVenue.set(vId, []);
-      matchesByVenue.get(vId)!.push(m);
-    }
-
-    const newMarkers: { id: number; lat: number; lng: number; popupHtml: string }[] = [];
-    for (const [, venueMatches] of matchesByVenue.entries()) {
-      const first = venueMatches[0];
-      if (!first || !first.venue || first.venue.latitude == null || first.venue.longitude == null) continue;
-      const v = first.venue;
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const today: MatchDto[] = [];
-      const upcoming: MatchDto[] = [];
-      const past: MatchDto[] = [];
-      for (const m of venueMatches) {
-        if (!m.time) { past.push(m); continue; }
-        const t = new Date(m.time);
-        if (t >= todayStart && t < todayEnd) today.push(m);
-        else if (t >= todayEnd) upcoming.push(m);
-        else past.push(m);
-      }
-      const fmt = (m: MatchDto) => {
-        const bits = formatMatch(m);
-        const openTag = m.url ? `<a href="${m.url}" target="_blank" rel="noopener noreferrer">` : '';
-        const closeTag = m.url ? '</a>' : '';
-        return `<li class="match-card">${openTag}` +
-          `<div class="match-header">${bits.header}</div>` +
-          `<div class="match-line"><span class="team home">${bits.home}</span><span class="date">${bits.dateRight}</span></div>` +
-          `<div class="match-line"><span class="team away">${bits.away}</span><span class="time">${bits.timeRight}</span></div>` +
-          `${closeTag}</li>`;
-      };
-      const buildSection = (title: string, arr: MatchDto[], sortDesc = false) => {
-        if (!arr.length) return '';
-        sortMatchesChronologically(arr, sortDesc);
-        return `<h4 class="group">${title} (${arr.length})</h4><ul class="matches match-cards">${arr.map(fmt).join('')}</ul>`;
-      };
-      const popupContent = `
-        <div class="match-popup">
-            <h3>${v.address || 'Spielort'} (${venueMatches.length} Spiel${venueMatches.length !== 1 ? 'e' : ''})</h3>
-            ${buildSection('Heute', today)}
-            ${buildSection('Nächste Spiele', upcoming)}
-            ${buildSection('Letzte Spiele', past, true)}
-        </div>
-      `;
-      newMarkers.push({ id: v.id, lat: v.latitude!, lng: v.longitude!, popupHtml: popupContent });
-    }
-    markers.value = newMarkers;
+  markers.value = buildMarkers(matches.value);
   } catch (e) {
     console.error('Error loading matches:', e);
   }
