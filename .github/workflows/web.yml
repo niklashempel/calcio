@@ -40,3 +40,6 @@ jobs:
 
       - name: ESLint (no fix)
         run: pnpm eslint . --max-warnings=0
+
+      - name: Run tests
+        run: pnpm test
