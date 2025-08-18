@@ -273,18 +273,29 @@ def upsert_match(
         logger.error(f"Error inserting match via API: {error}")
 
 
-def get_clubs() -> list[tuple[Any, ...]]:
-    """Get all clubs using API"""
+def get_clubs(post_codes: list[str] | None = None) -> list[tuple[Any, ...]]:
+    """Get all clubs using API, optionally filtered by postal codes.
+
+    The backend expects repeated PostCodes query parameters, e.g.:
+    /api/clubs?PostCodes=12345&PostCodes=23456
+    """
     try:
-        response = _get_initialized_client()._get("/api/clubs")
+        endpoint = "/api/clubs"
+        if post_codes:
+            query = "&".join(f"PostCodes={post_code}" for post_code in post_codes)
+            endpoint += f"?{query}"
+        response = _get_initialized_client()._get(endpoint)
         if response.status_code == 200:
             clubs_data = response.json()
-            # Return tuples of external_id to match original function signature
             return [
                 (club.get("externalId"),)
                 for club in clubs_data
                 if club.get("externalId")
             ]
+        else:
+            logger.error(
+                f"Error fetching clubs via API: {response.status_code} - {response.text}"
+            )
         return []
     except Exception as error:
         logger.error(f"Error fetching clubs via API: {error}")

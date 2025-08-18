@@ -22,9 +22,9 @@ public class ClubsController : ControllerBase
     /// <returns>List of all football clubs with their associated teams</returns>
     [HttpGet]
     [ProducesResponseType(typeof(List<ClubDto>), 200)]
-    public async Task<ActionResult<List<ClubDto>>> GetClubs()
+    public async Task<ActionResult<List<ClubDto>>> GetClubs([FromQuery] GetClubsRequestDto request)
     {
-        var clubs = await _clubService.GetAllClubsAsync();
+        var clubs = await _clubService.GetClubsAsync(request);
         return Ok(clubs);
     }
 

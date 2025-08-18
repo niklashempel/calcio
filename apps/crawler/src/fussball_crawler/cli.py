@@ -96,11 +96,46 @@ def find_matches_command(args: argparse.Namespace) -> int:
 
     try:
         logger.info(f"Finding matches for all clubs from {from_date} to {to_date}...")
+        # Collect post codes filter if provided
+        post_codes: list[str] | None = None
+        if getattr(args, "post_codes", None):
+            post_codes = []
+            try:
+                with open(args.post_codes, encoding="utf-8") as f:
+                    for line in f:
+                        pc = line.strip()
+                        if not pc:
+                            continue
+                        if not validate_postal_code(pc):
+                            logger.warning(
+                                f"Skipping invalid postal code in file: {pc} (expected 5 digits)"
+                            )
+                            continue
+                        post_codes.append(pc)
+                if not post_codes:
+                    logger.error(
+                        "No valid postal codes found in file; aborting match lookup"
+                    )
+                    return 1
+                logger.info(
+                    "Filtering clubs by postal codes (count: "
+                    + str(len(post_codes))
+                    + ")"
+                )
+            except FileNotFoundError:
+                logger.error(
+                    f"Postal codes file not found: {args.post_codes}; aborting"
+                )
+                return 1
+            except Exception as e:
+                logger.error(f"Error reading postal codes file {args.post_codes}: {e}")
+                return 1
         find_matches_main(
-            from_date=from_date,
-            to_date=to_date,
-            geocoder_url=args.geocoder_url,
-            calio_api_url=args.api_url,
+            from_date,
+            to_date,
+            args.geocoder_url,
+            args.api_url,
+            post_codes,
         )
         logger.info("Match finding completed successfully")
         return 0
@@ -194,6 +229,10 @@ Examples:
         "--api-url",
         default="http://localhost:5149",
         help="Calcio api endpoint",
+    )
+    find_matches_parser.add_argument(
+        "--post-codes",
+        help="Optional file containing postal codes (one per line) to filter clubs",
     )
     find_matches_parser.set_defaults(func=find_matches_command)
 

@@ -34,7 +34,13 @@ def find_lat_long_online(
     return (coords[1], coords[0])
 
 
-def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) -> None:
+def main(
+    from_date: str,
+    to_date: str,
+    geocoder_url: str,
+    calio_api_url: str,
+    post_codes: list[str] | None = None,
+) -> None:
     logger = get_logger(__name__)
     setup_logging()
 
@@ -44,7 +50,7 @@ def main(from_date: str, to_date: str, geocoder_url: str, calio_api_url: str) ->
     if not api_available:
         return
 
-    clubs = api_client.get_clubs()
+    clubs = api_client.get_clubs(post_codes=post_codes)
     if clubs is None:
         logger.info("No clubs found...")
         clubs = []

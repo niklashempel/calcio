@@ -16,9 +16,14 @@ public class ClubService : IClubService
         _context = context;
     }
 
-    public async Task<List<ClubDto>> GetAllClubsAsync()
+    public async Task<List<ClubDto>> GetClubsAsync(GetClubsRequestDto request)
     {
-        var clubs = await _context.Clubs.Include(c => c.Teams).ToListAsync();
+        var query = _context.Clubs.AsQueryable();
+        if (request.PostCodes != null)
+        {
+            query = query.Where(c => request.PostCodes.Contains(c.PostCode));
+        }
+        var clubs = await query.Include(c => c.Teams).ToListAsync();
         return clubs.Select(c => c.ToDto()).ToList();
     }
 

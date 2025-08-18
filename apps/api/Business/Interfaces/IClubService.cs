@@ -4,7 +4,7 @@ namespace Api.Business.Interfaces;
 
 public interface IClubService
 {
-    Task<List<ClubDto>> GetAllClubsAsync();
+    Task<List<ClubDto>> GetClubsAsync(GetClubsRequestDto request);
     Task<ClubDto> FindOrCreateClubAsync(FindOrCreateClubRequestDto request);
     Task<int?> FindClubIdAsync(string externalId);
 }
