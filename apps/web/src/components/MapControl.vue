@@ -11,8 +11,10 @@
 </template>
 
 <script setup lang="ts">
-import { ApiService } from '@/services/api';
+import { useMatches } from '@/composables/useMatches';
 import type { MatchDto } from '@/types/api';
+import { formatMatch } from '@/utils/formatting';
+import { sortMatchesChronologically } from '@/utils/grouping';
 import L from 'leaflet';
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -29,8 +31,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const mapContainer = ref<HTMLElement>();
-const loading = ref(false);
-const matches = ref<MatchDto[]>([]);
+const { matches, loading, load } = useMatches();
 
 let map: L.Map | null = null;
 let markersLayer: L.LayerGroup | null = null;
@@ -78,8 +79,6 @@ const initMap = () => {
 const loadMatches = async () => {
   if (!map) return;
 
-  loading.value = true;
-
   try {
     const bounds = map.getBounds();
 
@@ -100,8 +99,7 @@ const loadMatches = async () => {
       maxLng: lngCenter + expandedLngRange / 2,
     };
 
-    const fetchedMatches = await ApiService.getMatches(request);
-    matches.value = fetchedMatches;
+  await load(request);
 
     // Clear existing markers
     if (markersLayer) {
@@ -110,7 +108,7 @@ const loadMatches = async () => {
 
     // Group matches by venue id
     const matchesByVenue = new Map<number, MatchDto[]>();
-    for (const m of fetchedMatches) {
+  for (const m of matches.value) {
       const vId = m.venue?.id;
       if (!vId || !m.venue?.latitude || !m.venue.longitude) continue;
       if (!matchesByVenue.has(vId)) {
@@ -120,7 +118,7 @@ const loadMatches = async () => {
     }
 
     // Add one marker per venue with list of matches (grouped: Today, Upcoming, Past)
-    for (const [, venueMatches] of matchesByVenue.entries()) {
+  for (const [, venueMatches] of matchesByVenue.entries()) {
       const v = venueMatches[0].venue!;
       if (!markersLayer) continue;
       const marker = L.marker([v.latitude!, v.longitude!]);
@@ -133,59 +131,28 @@ const loadMatches = async () => {
       const today: MatchDto[] = [];
       const upcoming: MatchDto[] = [];
       const past: MatchDto[] = [];
-
       for (const m of venueMatches) {
-        if (!m.time) {
-          past.push(m);
-          continue;
-        }
+        if (!m.time) { past.push(m); continue }
         const t = new Date(m.time);
-        if (t >= todayStart && t < todayEnd) today.push(m);
-        else if (t >= todayEnd) upcoming.push(m);
-        else past.push(m);
+        if (t >= todayStart && t < todayEnd) today.push(m)
+        else if (t >= todayEnd) upcoming.push(m)
+        else past.push(m)
       }
 
       const fmt = (m: MatchDto) => {
-        const t = m.time ? new Date(m.time) : null;
-        const weekday = t
-          ? t.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '')
-          : '';
-        const dayMonth = t
-          ? `${String(t.getDate()).padStart(2, '0')}.${String(t.getMonth() + 1).padStart(2, '0')}.`
-          : '';
-        const dateRight = t ? `${weekday}, ${dayMonth}` : '';
-        const timeRight = t
-          ? `${t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`
-          : '';
-        const comp = m.competition?.name || '';
-        const age = m.ageGroup?.name || '';
-        const home = m.homeTeam?.name || 'Heim unbekannt';
-        const away = m.awayTeam?.name || 'Gast unbekannt';
-        const header = [age, comp].filter(Boolean).join(' | ');
-        const openTag = m.url
-          ? `<a href=\"${m.url}\" target=\"_blank\" rel=\"noopener noreferrer\">`
-          : '';
+        const bits = formatMatch(m);
+        const openTag = m.url ? `<a href=\"${m.url}\" target=\"_blank\" rel=\"noopener noreferrer\">` : '';
         const closeTag = m.url ? '</a>' : '';
-        return (
-          `<li class=\"match-card\">` +
-          openTag +
-          `<div class=\"match-header\">${header}</div>` +
-          `<div class=\"match-line\"><span class=\"team home\">${home}</span><span class=\"date\">${dateRight}</span></div>` +
-          `<div class=\"match-line\"><span class=\"team away\">${away}</span><span class=\"time\">${timeRight}</span></div>` +
-          closeTag +
-          `</li>`
-        );
+        return `<li class=\"match-card\">${openTag}`+
+          `<div class=\"match-header\">${bits.header}</div>`+
+          `<div class=\"match-line\"><span class=\"team home\">${bits.home}</span><span class=\"date\">${bits.dateRight}</span></div>`+
+          `<div class=\"match-line\"><span class=\"team away\">${bits.away}</span><span class=\"time\">${bits.timeRight}</span></div>`+
+          `${closeTag}</li>`;
       };
 
       const buildSection = (title: string, arr: MatchDto[], sortDesc = false) => {
         if (!arr.length) return '';
-        arr.sort((a, b) => {
-          if (!a.time && !b.time) return 0;
-          if (!a.time) return 1;
-          if (!b.time) return -1;
-          const cmp = a.time.localeCompare(b.time);
-          return sortDesc ? -cmp : cmp;
-        });
+        sortMatchesChronologically(arr, sortDesc);
         return `<h4 class=\"group\">${title} (${arr.length})</h4><ul class=\"matches match-cards\">${arr.map(fmt).join('')}</ul>`;
       };
 
@@ -203,7 +170,7 @@ const loadMatches = async () => {
   } catch (error) {
     console.error('Error loading matches:', error);
   } finally {
-    loading.value = false;
+    // loading flag handled inside composable
   }
 };
 
