@@ -18,7 +18,8 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for marker icons
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+// Suppress Leaflet private property typing without using 'any'
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -86,26 +87,81 @@ const loadMatches = async () => {
       markersLayer.clearLayers();
     }
 
-    // Add new markers for venues
-    fetchedMatches.forEach(match => {
-      if (match.venue?.latitude && match.venue?.longitude && markersLayer) {
-        const marker = L.marker([match.venue.latitude, match.venue.longitude]);
-
-        // Create popup content
-        const popupContent = `
-          <div class="match-popup">
-            <h3>${match.homeTeam?.name || 'Unknown'} vs ${match.awayTeam?.name || 'Unknown'}</h3>
-            ${match.time ? `<p><strong>Time:</strong> ${new Date(match.time).toLocaleString()}</p>` : ''}
-            ${match.venue?.address ? `<p><strong>Venue:</strong> ${match.venue.address}</p>` : ''}
-            ${match.competition?.name ? `<p><strong>Competition:</strong> ${match.competition.name}</p>` : ''}
-            ${match.ageGroup?.name ? `<p><strong>Age Group:</strong> ${match.ageGroup.name}</p>` : ''}
-          </div>
-        `;
-
-        marker.bindPopup(popupContent);
-        markersLayer.addLayer(marker);
+    // Group matches by venue id
+    const matchesByVenue = new Map<number, MatchDto[]>();
+    for (const m of fetchedMatches) {
+      const vId = m.venue?.id;
+      if (!vId || !m.venue?.latitude || !m.venue.longitude) continue;
+      if (!matchesByVenue.has(vId)) {
+        matchesByVenue.set(vId, []);
       }
-    });
+      matchesByVenue.get(vId)!.push(m);
+    }
+
+    // Add one marker per venue with list of matches (grouped: Today, Upcoming, Past)
+    for (const [, venueMatches] of matchesByVenue.entries()) {
+      const v = venueMatches[0].venue!;
+      if (!markersLayer) continue;
+      const marker = L.marker([v.latitude!, v.longitude!]);
+
+      // Prepare date boundaries
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+      const today: MatchDto[] = [];
+      const upcoming: MatchDto[] = [];
+      const past: MatchDto[] = [];
+
+      for (const m of venueMatches) {
+        if (!m.time) { past.push(m); continue; }
+        const t = new Date(m.time);
+        if (t >= todayStart && t < todayEnd) today.push(m);
+        else if (t >= todayEnd) upcoming.push(m);
+        else past.push(m);
+      }
+
+      const fmt = (m: MatchDto) => {
+        const t = m.time ? new Date(m.time) : null;
+        const weekday = t ? t.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '') : '';
+        const dayMonth = t ? `${String(t.getDate()).padStart(2,'0')}.${String(t.getMonth()+1).padStart(2,'0')}.` : '';
+        const dateRight = t ? `${weekday}, ${dayMonth}` : '';
+        const timeRight = t ? `${t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr` : '';
+        const comp = m.competition?.name || '';
+        const age = m.ageGroup?.name || '';
+        const home = m.homeTeam?.name || 'Heim unbekannt';
+        const away = m.awayTeam?.name || 'Gast unbekannt';
+        const header = [age, comp].filter(Boolean).join(' | ');
+        return `<li class=\"match-card\">`+
+          `<div class=\"match-header\">${header}</div>`+
+          `<div class=\"match-line\"><span class=\"team home\">${home}</span><span class=\"date\">${dateRight}</span></div>`+
+          `<div class=\"match-line\"><span class=\"team away\">${away}</span><span class=\"time\">${timeRight}</span></div>`+
+        `</li>`;
+      };
+
+      const buildSection = (title: string, arr: MatchDto[], sortDesc = false) => {
+        if (!arr.length) return '';
+        arr.sort((a,b) => {
+          if (!a.time && !b.time) return 0;
+            if (!a.time) return 1;
+            if (!b.time) return -1;
+            const cmp = a.time.localeCompare(b.time);
+            return sortDesc ? -cmp : cmp;
+        });
+        return `<h4 class=\"group\">${title} (${arr.length})</h4><ul class=\"matches match-cards\">${arr.map(fmt).join('')}</ul>`;
+      };
+
+      const popupContent = `
+        <div class=\"match-popup\">
+          <h3>${v.address || 'Venue'} (${venueMatches.length} Match${venueMatches.length !== 1 ? 'es' : ''})</h3>
+          ${buildSection('Today', today)}
+          ${buildSection('Upcoming', upcoming)}
+          ${buildSection('Past', past, true)}
+        </div>
+      `;
+      marker.bindPopup(popupContent, { maxWidth: 380 });
+      markersLayer.addLayer(marker);
+    }
   } catch (error) {
     console.error('Error loading matches:', error);
   } finally {
@@ -175,5 +231,85 @@ onUnmounted(() => {
 
 .match-popup strong {
   color: #333;
+}
+
+.match-popup h4.group {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #555;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 2px;
+}
+
+.match-popup ul.matches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.match-popup ul.matches li {
+  margin: 4px 0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #f7f7f7;
+}
+
+.match-popup ul.matches li:nth-child(odd) {
+  background: #eee;
+}
+
+.match-popup ul.matches .time {
+  font-weight: 500;
+  color: #222;
+}
+
+.match-popup ul.matches .comp {
+  color: #2a5db0;
+}
+
+.match-popup ul.matches .age {
+  color: #8a5bb3;
+}
+
+.match-popup ul.match-cards { padding-top: 4px; }
+.match-popup ul.match-cards li.match-card {
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  margin: 8px 0;
+  padding: 6px 8px 8px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  font-size: 13px;
+}
+.match-popup ul.match-cards li.match-card .match-header {
+  font-weight: 600;
+  font-size: 12px;
+  color: #444;
+  margin-bottom: 4px;
+}
+.match-popup ul.match-cards li.match-card .match-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  line-height: 1.2;
+}
+.match-popup ul.match-cards li.match-card .team {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.match-popup ul.match-cards li.match-card .team.home { font-weight: 500; }
+.match-popup ul.match-cards li.match-card .date, .match-popup ul.match-cards li.match-card .time {
+  flex: 0 0 auto;
+  min-width: 90px;
+  text-align: right;
+  color: #333;
+  font-weight: 500;
 }
 </style>
