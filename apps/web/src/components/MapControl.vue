@@ -23,7 +23,12 @@ import LeafletMap from './LeafletMap.vue';
 
 const { matches, loading, load } = useMatches();
 const markers = ref<ReturnType<typeof buildMarkers>>([]);
-const currentBounds = ref<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
+const currentBounds = ref<{
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+} | null>(null);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS = 300;
 
@@ -60,7 +65,7 @@ async function loadMatches() {
     };
     await load(request);
 
-  markers.value = buildMarkers(matches.value);
+    markers.value = buildMarkers(matches.value);
   } catch (e) {
     console.error('Error loading matches:', e);
   }

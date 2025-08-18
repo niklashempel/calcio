@@ -76,7 +76,10 @@ const grouped = computed(() => {
   const upcoming: MatchDto[] = [];
   const past: MatchDto[] = [];
   for (const m of props.matches) {
-    if (!m.time) { past.push(m); continue; }
+    if (!m.time) {
+      past.push(m);
+      continue;
+    }
     const t = new Date(m.time);
     if (t >= todayStart && t < todayEnd) today.push(m);
     else if (t >= todayEnd) upcoming.push(m);
@@ -100,5 +103,4 @@ const format = (m: MatchDto) => formatMatch(m);
 const linkTag = (m: MatchDto) => (m.url ? 'a' : 'div');
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

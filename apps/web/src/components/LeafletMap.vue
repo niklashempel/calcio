@@ -20,7 +20,10 @@ interface MarkerInput {
 
 const props = defineProps<{ markers: MarkerInput[] }>();
 const emit = defineEmits<{
-  (e: 'bounds-changed', bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }): void;
+  (
+    e: 'bounds-changed',
+    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+  ): void;
   (e: 'ready', bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }): void;
 }>();
 
@@ -36,7 +39,7 @@ delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIc
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
 function emitBounds() {
@@ -46,7 +49,7 @@ function emitBounds() {
     minLat: b.getSouth(),
     maxLat: b.getNorth(),
     minLng: b.getWest(),
-    maxLng: b.getEast()
+    maxLng: b.getEast(),
   });
 }
 
@@ -54,7 +57,8 @@ onMounted(() => {
   if (!mapEl.value) return;
   map = L.map(mapEl.value).setView([51.1657, 10.4515], 6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> Contributors'
+    attribution:
+      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> Contributors',
   }).addTo(map);
   markersLayer = L.layerGroup().addTo(map);
 
@@ -65,8 +69,12 @@ onMounted(() => {
     }
     emitBounds();
   });
-  map.on('popupopen', () => { skipNextMoveEnd = true; });
-  map.on('popupclose', () => { skipNextMoveEnd = false; });
+  map.on('popupopen', () => {
+    skipNextMoveEnd = true;
+  });
+  map.on('popupclose', () => {
+    skipNextMoveEnd = false;
+  });
 
   // Initial bounds emit
   emitBounds();
@@ -75,7 +83,7 @@ onMounted(() => {
     minLat: b.getSouth(),
     maxLat: b.getNorth(),
     minLng: b.getWest(),
-    maxLng: b.getEast()
+    maxLng: b.getEast(),
   });
 });
 
@@ -118,10 +126,13 @@ watch(
       markersLayer.addLayer(marker);
     }
   },
-  { deep: true }
+  { deep: true },
 );
 </script>
 
 <style scoped>
-.leaflet-map { height: 100%; width: 100%; }
+.leaflet-map {
+  height: 100%;
+  width: 100%;
+}
 </style>
