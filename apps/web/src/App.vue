@@ -5,7 +5,7 @@ import MapControl from './components/MapControl.vue';
 <template>
   <div id="app">
     <header>
-      <h1>Calcio - Football Match Map</h1>
+  <h1>Calcio - Karte</h1>
     </header>
 
     <main>

@@ -2,8 +2,10 @@
   <div class="map-container">
     <div ref="mapContainer" class="map"></div>
     <div class="map-info" v-if="loading || matches.length > 0">
-      <div v-if="loading" class="loading">Loading matches...</div>
-      <div v-else class="match-count">{{ matches.length }} matches found</div>
+  <div v-if="loading" class="loading">Lade Spiele...</div>
+  <div v-else class="match-count">
+    {{ matches.length }} {{ matches.length === 1 ? 'Spiel' : 'Spiele' }} gefunden
+  </div>
     </div>
   </div>
 </template>
@@ -189,10 +191,10 @@ const loadMatches = async () => {
 
       const popupContent = `
         <div class=\"match-popup\">
-          <h3>${v.address || 'Venue'} (${venueMatches.length} Match${venueMatches.length !== 1 ? 'es' : ''})</h3>
-          ${buildSection('Today', today)}
-          ${buildSection('Upcoming', upcoming)}
-          ${buildSection('Past', past, true)}
+            <h3>${v.address || 'Spielort'} (${venueMatches.length} Spiel${venueMatches.length !== 1 ? 'e' : ''})</h3>
+            ${buildSection('Heute', today)}
+            ${buildSection('Nächste Spiele', upcoming)}
+            ${buildSection('Letzte Spiele', past, true)}
         </div>
       `;
       marker.bindPopup(popupContent, { maxWidth: 380 });
