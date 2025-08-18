@@ -41,7 +41,8 @@ const initMap = () => {
 
   // Add OpenStreetMap tiles
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    attribution:
+      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
   // Initialize markers layer
@@ -76,7 +77,7 @@ const loadMatches = async () => {
       minLat: latCenter - expandedLatRange / 2,
       maxLat: latCenter + expandedLatRange / 2,
       minLng: lngCenter - expandedLngRange / 2,
-      maxLng: lngCenter + expandedLngRange / 2
+      maxLng: lngCenter + expandedLngRange / 2,
     };
 
     const fetchedMatches = await ApiService.getMatches(request);
@@ -114,7 +115,10 @@ const loadMatches = async () => {
       const past: MatchDto[] = [];
 
       for (const m of venueMatches) {
-        if (!m.time) { past.push(m); continue; }
+        if (!m.time) {
+          past.push(m);
+          continue;
+        }
         const t = new Date(m.time);
         if (t >= todayStart && t < todayEnd) today.push(m);
         else if (t >= todayEnd) upcoming.push(m);
@@ -123,30 +127,44 @@ const loadMatches = async () => {
 
       const fmt = (m: MatchDto) => {
         const t = m.time ? new Date(m.time) : null;
-        const weekday = t ? t.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '') : '';
-        const dayMonth = t ? `${String(t.getDate()).padStart(2,'0')}.${String(t.getMonth()+1).padStart(2,'0')}.` : '';
+        const weekday = t
+          ? t.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '')
+          : '';
+        const dayMonth = t
+          ? `${String(t.getDate()).padStart(2, '0')}.${String(t.getMonth() + 1).padStart(2, '0')}.`
+          : '';
         const dateRight = t ? `${weekday}, ${dayMonth}` : '';
-        const timeRight = t ? `${t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr` : '';
+        const timeRight = t
+          ? `${t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`
+          : '';
         const comp = m.competition?.name || '';
         const age = m.ageGroup?.name || '';
         const home = m.homeTeam?.name || 'Heim unbekannt';
         const away = m.awayTeam?.name || 'Gast unbekannt';
         const header = [age, comp].filter(Boolean).join(' | ');
-        return `<li class=\"match-card\">`+
-          `<div class=\"match-header\">${header}</div>`+
-          `<div class=\"match-line\"><span class=\"team home\">${home}</span><span class=\"date\">${dateRight}</span></div>`+
-          `<div class=\"match-line\"><span class=\"team away\">${away}</span><span class=\"time\">${timeRight}</span></div>`+
-        `</li>`;
+        const openTag = m.url
+          ? `<a href=\"${m.url}\" target=\"_blank\" rel=\"noopener noreferrer\">`
+          : '';
+        const closeTag = m.url ? '</a>' : '';
+        return (
+          `<li class=\"match-card\">` +
+          openTag +
+          `<div class=\"match-header\">${header}</div>` +
+          `<div class=\"match-line\"><span class=\"team home\">${home}</span><span class=\"date\">${dateRight}</span></div>` +
+          `<div class=\"match-line\"><span class=\"team away\">${away}</span><span class=\"time\">${timeRight}</span></div>` +
+          closeTag +
+          `</li>`
+        );
       };
 
       const buildSection = (title: string, arr: MatchDto[], sortDesc = false) => {
         if (!arr.length) return '';
-        arr.sort((a,b) => {
+        arr.sort((a, b) => {
           if (!a.time && !b.time) return 0;
-            if (!a.time) return 1;
-            if (!b.time) return -1;
-            const cmp = a.time.localeCompare(b.time);
-            return sortDesc ? -cmp : cmp;
+          if (!a.time) return 1;
+          if (!b.time) return -1;
+          const cmp = a.time.localeCompare(b.time);
+          return sortDesc ? -cmp : cmp;
         });
         return `<h4 class=\"group\">${title} (${arr.length})</h4><ul class=\"matches match-cards\">${arr.map(fmt).join('')}</ul>`;
       };
@@ -200,7 +218,7 @@ onUnmounted(() => {
   background: white;
   padding: 8px 12px;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   font-size: 14px;
 }
@@ -276,15 +294,27 @@ onUnmounted(() => {
   color: #8a5bb3;
 }
 
-.match-popup ul.match-cards { padding-top: 4px; }
+.match-popup ul.match-cards {
+  padding-top: 4px;
+}
 .match-popup ul.match-cards li.match-card {
   background: #fff;
   border: 1px solid #e2e2e2;
   margin: 8px 0;
   padding: 6px 8px 8px;
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   font-size: 13px;
+}
+.match-popup ul.match-cards li.match-card > a {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+.match-popup ul.match-cards li.match-card:hover {
+  border-color: #c9c9c9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
 }
 .match-popup ul.match-cards li.match-card .match-header {
   font-weight: 600;
@@ -304,8 +334,11 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.match-popup ul.match-cards li.match-card .team.home { font-weight: 500; }
-.match-popup ul.match-cards li.match-card .date, .match-popup ul.match-cards li.match-card .time {
+.match-popup ul.match-cards li.match-card .team.home {
+  font-weight: 500;
+}
+.match-popup ul.match-cards li.match-card .date,
+.match-popup ul.match-cards li.match-card .time {
   flex: 0 0 auto;
   min-width: 90px;
   text-align: right;
