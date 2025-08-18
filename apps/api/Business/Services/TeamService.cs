@@ -33,15 +33,6 @@ public class TeamService : ITeamService
 
         var club = await _context.Clubs.FirstOrDefaultAsync(c => c.ExternalId == request.ClubExternalId) ?? throw new ArgumentException($"Club with external ID {request.ClubExternalId} not found");
 
-        var existingTeamByName = await _context.Teams.Include(t => t.Club)
-            .FirstOrDefaultAsync(t => t.Name == request.Name && t.ClubId == club.Id);
-        if (existingTeamByName != null)
-        {
-            existingTeamByName.ExternalId = request.ExternalId; // Update external ID if provided
-            await _context.SaveChangesAsync();
-            return existingTeamByName.ToDto();
-        }
-
         var newTeam = new Team
         {
             Name = request.Name,
