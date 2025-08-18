@@ -1,11 +1,16 @@
 <template>
   <div class="map-container">
-    <div ref="mapContainer" class="map"></div>
+    <LeafletMap
+      class="map"
+      :markers="markers"
+      @bounds-changed="onBoundsChanged"
+      @ready="onInitialBounds"
+    />
     <div class="map-info" v-if="loading || matches.length > 0">
-  <div v-if="loading" class="loading">Lade Spiele...</div>
-  <div v-else class="match-count">
-    {{ matches.length }} {{ matches.length === 1 ? 'Spiel' : 'Spiele' }} gefunden
-  </div>
+      <div v-if="loading" class="loading">Lade Spiele...</div>
+      <div v-else class="match-count">
+        {{ matches.length }} {{ matches.length === 1 ? 'Spiel' : 'Spiele' }} gefunden
+      </div>
     </div>
   </div>
 </template>
@@ -15,178 +20,99 @@ import { useMatches } from '@/composables/useMatches';
 import type { MatchDto } from '@/types/api';
 import { formatMatch } from '@/utils/formatting';
 import { sortMatchesChronologically } from '@/utils/grouping';
-import L from 'leaflet';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { ref } from 'vue';
+import LeafletMap from './LeafletMap.vue';
 
-// Fix for default markers in Leaflet with Vite
-import 'leaflet/dist/leaflet.css';
-
-// Fix for marker icons
-// Suppress Leaflet private property typing without using 'any'
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-const mapContainer = ref<HTMLElement>();
 const { matches, loading, load } = useMatches();
+const markers = ref<{ id: number; lat: number; lng: number; popupHtml: string }[]>([]);
+const currentBounds = ref<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
 
-let map: L.Map | null = null;
-let markersLayer: L.LayerGroup | null = null;
-// Flag to skip the next moveend event triggered by Leaflet auto-panning when opening a popup
-let skipNextMoveEnd = false;
-
-const initMap = () => {
-  if (!mapContainer.value) return;
-
-  // Initialize map centered on Germany
-  map = L.map(mapContainer.value).setView([51.1657, 10.4515], 6);
-
-  // Add OpenStreetMap tiles
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution:
-      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
-
-  // Initialize markers layer
-  markersLayer = L.layerGroup().addTo(map);
-
-  // Load initial matches
+function onInitialBounds(b: { minLat: number; maxLat: number; minLng: number; maxLng: number }) {
+  currentBounds.value = b;
   loadMatches();
+}
 
-  // Add intelligent event listener for map movement
-  // We skip the immediate moveend after a popup open (Leaflet auto-pans to show popup)
-  map.on('moveend', () => {
-    if (skipNextMoveEnd) {
-      skipNextMoveEnd = false;
-      return; // Don't reload; prevents popup from closing
-    }
-    loadMatches();
-  });
+function onBoundsChanged(b: { minLat: number; maxLat: number; minLng: number; maxLng: number }) {
+  currentBounds.value = b;
+  loadMatches();
+}
 
-  map.on('popupopen', () => {
-    // Next moveend is likely due to auto-pan -> skip reload
-    skipNextMoveEnd = true;
-  });
-  map.on('popupclose', () => {
-    // After closing allow normal reloads
-    skipNextMoveEnd = false;
-  });
-};
-
-const loadMatches = async () => {
-  if (!map) return;
-
+async function loadMatches() {
+  if (!currentBounds.value) return;
   try {
-    const bounds = map.getBounds();
-
-    // Expand the bounding box by 50% in each direction
-    const latCenter = (bounds.getNorth() + bounds.getSouth()) / 2;
-    const lngCenter = (bounds.getEast() + bounds.getWest()) / 2;
-    const latRange = bounds.getNorth() - bounds.getSouth();
-    const lngRange = bounds.getEast() - bounds.getWest();
-
-    const expandFactor = 1.5; // 50% expansion
+    // Expand bounds by 50%
+    const b = currentBounds.value;
+    const latCenter = (b.minLat + b.maxLat) / 2;
+    const lngCenter = (b.minLng + b.maxLng) / 2;
+    const latRange = b.maxLat - b.minLat;
+    const lngRange = b.maxLng - b.minLng;
+    const expandFactor = 1.5;
     const expandedLatRange = latRange * expandFactor;
     const expandedLngRange = lngRange * expandFactor;
-
     const request = {
       minLat: latCenter - expandedLatRange / 2,
       maxLat: latCenter + expandedLatRange / 2,
       minLng: lngCenter - expandedLngRange / 2,
       maxLng: lngCenter + expandedLngRange / 2,
     };
+    await load(request);
 
-  await load(request);
-
-    // Clear existing markers
-    if (markersLayer) {
-      markersLayer.clearLayers();
-    }
-
-    // Group matches by venue id
     const matchesByVenue = new Map<number, MatchDto[]>();
-  for (const m of matches.value) {
+    for (const m of matches.value) {
       const vId = m.venue?.id;
       if (!vId || !m.venue?.latitude || !m.venue.longitude) continue;
-      if (!matchesByVenue.has(vId)) {
-        matchesByVenue.set(vId, []);
-      }
+      if (!matchesByVenue.has(vId)) matchesByVenue.set(vId, []);
       matchesByVenue.get(vId)!.push(m);
     }
 
-    // Add one marker per venue with list of matches (grouped: Today, Upcoming, Past)
-  for (const [, venueMatches] of matchesByVenue.entries()) {
-      if (!venueMatches[0]) {
-        continue
-      }
-      const v = venueMatches[0].venue!;
-      if (!markersLayer) continue;
-      const marker = L.marker([v.latitude!, v.longitude!]);
-
-      // Prepare date boundaries
+    const newMarkers: { id: number; lat: number; lng: number; popupHtml: string }[] = [];
+    for (const [, venueMatches] of matchesByVenue.entries()) {
+      const first = venueMatches[0];
+      if (!first || !first.venue || first.venue.latitude == null || first.venue.longitude == null) continue;
+      const v = first.venue;
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-
       const today: MatchDto[] = [];
       const upcoming: MatchDto[] = [];
       const past: MatchDto[] = [];
       for (const m of venueMatches) {
-        if (!m.time) { past.push(m); continue }
+        if (!m.time) { past.push(m); continue; }
         const t = new Date(m.time);
-        if (t >= todayStart && t < todayEnd) today.push(m)
-        else if (t >= todayEnd) upcoming.push(m)
-        else past.push(m)
+        if (t >= todayStart && t < todayEnd) today.push(m);
+        else if (t >= todayEnd) upcoming.push(m);
+        else past.push(m);
       }
-
       const fmt = (m: MatchDto) => {
         const bits = formatMatch(m);
-        const openTag = m.url ? `<a href=\"${m.url}\" target=\"_blank\" rel=\"noopener noreferrer\">` : '';
+        const openTag = m.url ? `<a href="${m.url}" target="_blank" rel="noopener noreferrer">` : '';
         const closeTag = m.url ? '</a>' : '';
-        return `<li class=\"match-card\">${openTag}`+
-          `<div class=\"match-header\">${bits.header}</div>`+
-          `<div class=\"match-line\"><span class=\"team home\">${bits.home}</span><span class=\"date\">${bits.dateRight}</span></div>`+
-          `<div class=\"match-line\"><span class=\"team away\">${bits.away}</span><span class=\"time\">${bits.timeRight}</span></div>`+
+        return `<li class="match-card">${openTag}` +
+          `<div class="match-header">${bits.header}</div>` +
+          `<div class="match-line"><span class="team home">${bits.home}</span><span class="date">${bits.dateRight}</span></div>` +
+          `<div class="match-line"><span class="team away">${bits.away}</span><span class="time">${bits.timeRight}</span></div>` +
           `${closeTag}</li>`;
       };
-
       const buildSection = (title: string, arr: MatchDto[], sortDesc = false) => {
         if (!arr.length) return '';
         sortMatchesChronologically(arr, sortDesc);
-        return `<h4 class=\"group\">${title} (${arr.length})</h4><ul class=\"matches match-cards\">${arr.map(fmt).join('')}</ul>`;
+        return `<h4 class="group">${title} (${arr.length})</h4><ul class="matches match-cards">${arr.map(fmt).join('')}</ul>`;
       };
-
       const popupContent = `
-        <div class=\"match-popup\">
+        <div class="match-popup">
             <h3>${v.address || 'Spielort'} (${venueMatches.length} Spiel${venueMatches.length !== 1 ? 'e' : ''})</h3>
             ${buildSection('Heute', today)}
             ${buildSection('Nächste Spiele', upcoming)}
             ${buildSection('Letzte Spiele', past, true)}
         </div>
       `;
-      marker.bindPopup(popupContent, { maxWidth: 380 });
-      markersLayer.addLayer(marker);
+      newMarkers.push({ id: v.id, lat: v.latitude!, lng: v.longitude!, popupHtml: popupContent });
     }
-  } catch (error) {
-    console.error('Error loading matches:', error);
-  } finally {
-    // loading flag handled inside composable
+    markers.value = newMarkers;
+  } catch (e) {
+    console.error('Error loading matches:', e);
   }
-};
-
-onMounted(() => {
-  initMap();
-});
-
-onUnmounted(() => {
-  if (map) {
-    map.remove();
-    map = null;
-  }
-});
+}
 </script>
 
 <style scoped>
