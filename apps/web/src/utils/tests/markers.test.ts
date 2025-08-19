@@ -1,4 +1,4 @@
-import type { MatchDto } from '@/types/api';
+import type { GroupedMatches, MatchDto } from '@/types/api';
 import { describe, expect, it } from 'vitest';
 import { buildMarkers } from '../markers';
 
@@ -17,9 +17,27 @@ function match(id: number, venueId: number, offsetHours: number): MatchDto {
 }
 
 describe('buildMarkers', () => {
-  it('creates one marker per venue with grouped popup sections', () => {
-    const ms: MatchDto[] = [match(1, 1, 0), match(2, 1, 30), match(3, 2, -30)];
-    const markers = buildMarkers(ms);
+  it('creates markers from grouped matches', () => {
+    const raw: MatchDto[] = [match(1, 1, 0), match(2, 1, 30), match(3, 2, -30)];
+    const grouped: GroupedMatches[] = [
+      {
+        venueId: 1,
+        venue: raw[0]!.venue,
+        count: 2,
+        today: [raw[0]!],
+        upcoming: [raw[1]!],
+        past: [],
+      },
+      {
+        venueId: 2,
+        venue: raw[2]!.venue,
+        count: 1,
+        today: [],
+        upcoming: [],
+        past: [raw[2]!],
+      },
+    ];
+    const markers = buildMarkers(grouped);
     expect(markers.length).toBe(2);
     const popup1 = markers.find((m) => m.id === 1)!.popupHtml;
     expect(popup1).toContain('Heute');

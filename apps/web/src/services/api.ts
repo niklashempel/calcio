@@ -1,4 +1,4 @@
-import type { GetMatchesRequest, MatchDto } from '@/types/api';
+import type { GetMatchesRequest, GroupedMatches } from '@/types/api';
 
 const API_BASE_URL = 'http://localhost:5149/api'; // API URL from launchSettings.json
 
@@ -19,7 +19,7 @@ export class ApiService {
     return response.json();
   }
 
-  static async getMatches(request: GetMatchesRequest): Promise<MatchDto[]> {
+  static async getMatches(request: GetMatchesRequest): Promise<GroupedMatches[]> {
     const params = new URLSearchParams();
 
     if (request.minLat !== undefined) params.append('minLat', request.minLat.toString());
@@ -30,6 +30,6 @@ export class ApiService {
     const queryString = params.toString();
     const endpoint = `/matches${queryString ? `?${queryString}` : ''}`;
 
-    return this.fetchApi<MatchDto[]>(endpoint);
+    return this.fetchApi<GroupedMatches[]>(endpoint);
   }
 }

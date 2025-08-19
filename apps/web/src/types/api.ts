@@ -38,3 +38,12 @@ export interface GetMatchesRequest {
   minLng?: number;
   maxLng?: number;
 }
+
+export interface GroupedMatches {
+  venueId: number;
+  venue?: VenueDto;
+  count: number;
+  today: MatchDto[];
+  upcoming: MatchDto[];
+  past: MatchDto[];
+}

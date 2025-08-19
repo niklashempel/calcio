@@ -1,4 +1,4 @@
-namespace Api.DTOs;
+namespace Calcio.Api.Core.DTOs;
 
 public class AgeGroupDto
 {

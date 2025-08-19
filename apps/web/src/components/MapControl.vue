@@ -65,7 +65,7 @@ async function loadMatches() {
     };
     await load(request);
 
-    markers.value = buildMarkers(matches.value);
+  markers.value = buildMarkers(matches.value);
   } catch (e) {
     console.error('Error loading matches:', e);
   }
