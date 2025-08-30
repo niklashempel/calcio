@@ -1,0 +1,35 @@
+name: API CI
+
+on:
+  push:
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api.yml"
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore Calcio.sln
+
+      - name: Build
+        run: dotnet build Calcio.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Calcio.sln --configuration Release --no-build --verbosity normal
