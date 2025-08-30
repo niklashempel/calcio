@@ -1,10 +1,24 @@
 import type { GetMatchesRequest, GroupedMatches } from '@/types/api';
 
-const API_BASE_URL = 'http://localhost:5149/api'; // API URL from launchSettings.json
+declare global {
+  interface Window {
+    __CALCIO_API_BASE__?: string;
+  }
+}
+
+// Resolve API base URL in order of precedence:
+// 1. Runtime global (window.__CALCIO_API_BASE__) injected by an optional script for truly dynamic config
+// 2. Vite build-time env var VITE_API_BASE_URL
+// 3. Fallback local dev default
+const API_BASE_URL: string =
+  (typeof window !== 'undefined' && window.__CALCIO_API_BASE__) ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:8080/api';
 
 export class ApiService {
   private static async fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL.replace(/\/$/, '')}${endpoint}`;
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
