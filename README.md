@@ -1,5 +1,8 @@
 # Calcio
 
+[![API CI](https://github.com/niklashempel/calcio/actions/workflows/api.yml/badge.svg)](https://github.com/niklashempel/calcio/actions/workflows/api.yml)
+[![Web CI](https://github.com/niklashempel/calcio/actions/workflows/web.yml/badge.svg)](https://github.com/niklashempel/calcio/actions/workflows/web.yml)
+
 Calcio (Italian for "football") is a platform that lets you find football matches in your area. It uses data from [fussball.de](https://www.fussball.de) to display information in an interactive map.
 
 ## Quickstart
