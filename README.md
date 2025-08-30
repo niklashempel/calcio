@@ -57,4 +57,4 @@ Before you start, ensure you have the following installed:
 - [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0) Make sure to install the SDK.
 - [Node.js](https://nodejs.org/)
 - [pnpm](https://pnpm.io/installation)
-- [Python 3.8+](https://www.python.org/downloads/)
+- [Python 3.9+](https://www.python.org/downloads/)
