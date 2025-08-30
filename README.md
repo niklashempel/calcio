@@ -5,6 +5,8 @@
 
 Calcio (Italian for "football") is a platform that lets you find football matches in your area. It uses data from [fussball.de](https://www.fussball.de) to display information in an interactive map.
 
+![Calcio map screenshot](docs/images/screenshot-map.png)
+
 ## Quickstart
 
 1. Clone the repository
