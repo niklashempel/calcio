@@ -43,4 +43,13 @@ public class VenuesController : ControllerBase
         var venueId = await _venueService.FindVenueIdAsync(address);
         return venueId.HasValue ? Ok(venueId.Value) : NotFound();
     }
+
+    [HttpPatch("/{id}")]
+    [ProducesResponseType(typeof(VenueDto), 200)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<VenueDto>> UpdateVenue(int id, [FromBody] UpdateVenueDto request)
+    {
+        var venue = await _venueService.UpdateVenueAsync(id, request);
+        return venue == null ? NotFound() : Ok(venue);
+    }
 }

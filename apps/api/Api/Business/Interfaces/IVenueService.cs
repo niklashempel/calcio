@@ -7,4 +7,6 @@ public interface IVenueService
 {
     Task<VenueDto> FindOrCreateVenueAsync(CreateVenueRequestDto request);
     Task<int?> FindVenueIdAsync(string address);
+
+    Task<VenueDto?> UpdateVenueAsync(int id, UpdateVenueDto request);
 }

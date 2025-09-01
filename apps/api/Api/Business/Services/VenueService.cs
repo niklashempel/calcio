@@ -58,4 +58,21 @@ public class VenueService : IVenueService
         var venue = await _context.Venues.FirstOrDefaultAsync(v => v.Address == address);
         return venue?.Id;
     }
+
+    public async Task<VenueDto?> UpdateVenueAsync(int id, UpdateVenueDto request)
+    {
+        var venue = await _context.Venues.FirstOrDefaultAsync(v => v.Id == id);
+        if (venue == null)
+        {
+            return null;
+        }
+
+        venue.Location = new NetTopologySuite.Geometries.Point(request.Longitude, request.Latitude)
+        {
+            SRID = 4326
+        };
+
+        await _context.SaveChangesAsync();
+        return venue.ToDto();
+    }
 }
