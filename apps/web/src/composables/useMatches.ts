@@ -3,7 +3,6 @@ import { type GetMatchesRequest, type GroupedMatches } from '@/types/api';
 import { ref } from 'vue';
 
 export function useMatches() {
-  // Deprecated: raw matches no longer returned directly by API
   const matches = ref<GroupedMatches[]>([]);
   const loading = ref(false);
   const lastBounds = ref<GetMatchesRequest | null>(null);
