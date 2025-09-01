@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Api.Data;
 
-namespace Api.IntegrationTests;
+namespace Api.IntegrationTests.Tests;
 
 public class CalcioWebApplicationFactory : WebApplicationFactory<Program>
 {

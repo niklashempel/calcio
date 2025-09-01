@@ -7,7 +7,7 @@ using Api.DTOs.Requests;
 using Calcio.Api.Core.DTOs;
 using NetTopologySuite.Geometries;
 
-namespace Api.IntegrationTests;
+namespace Api.IntegrationTests.Tests;
 
 public class VenuesControllerTests : IClassFixture<CalcioWebApplicationFactory>
 {
