@@ -50,7 +50,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Automatic database migration on startup
+// Automatic database migration on startup (only for relational databases, e.g. not for in memory database in integration tests)
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<CalcioDbContext>();
@@ -58,23 +58,31 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        logger.LogInformation("Checking for pending database migrations...");
-        var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-
-        if (pendingMigrations.Any())
+        if (context.Database.IsRelational())
         {
-            logger.LogInformation($"Applying {pendingMigrations.Count()} pending migrations...");
-            await context.Database.MigrateAsync();
-            logger.LogInformation("Database migrations completed successfully.");
+            logger.LogInformation("Checking for pending database migrations...");
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+
+            if (pendingMigrations.Any())
+            {
+                logger.LogInformation($"Applying {pendingMigrations.Count()} pending migrations...");
+                await context.Database.MigrateAsync();
+                logger.LogInformation("Database migrations completed successfully.");
+            }
+            else
+            {
+                logger.LogInformation("Database is up to date.");
+            }
         }
         else
         {
-            logger.LogInformation("Database is up to date.");
+            logger.LogInformation("Using non-relational database provider. Ensuring database is created...");
+            await context.Database.EnsureCreatedAsync();
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred while migrating the database.");
+        logger.LogError(ex, "An error occurred while setting up the database.");
         throw; // Re-throw to prevent the application from starting with an invalid database state
     }
 }
@@ -99,3 +107,6 @@ app.MapGet("/", () => "Calcio API is running!")
 .WithTags("Status");
 
 app.Run();
+
+// Make the implicit Program class accessible for testing
+public partial class Program { }

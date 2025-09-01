@@ -44,7 +44,7 @@ public class VenuesController : ControllerBase
         return venueId.HasValue ? Ok(venueId.Value) : NotFound();
     }
 
-    [HttpPatch("/{id}")]
+    [HttpPatch("{id}")]
     [ProducesResponseType(typeof(VenueDto), 200)]
     [ProducesResponseType(404)]
     public async Task<ActionResult<VenueDto>> UpdateVenue(int id, [FromBody] UpdateVenueDto request)
