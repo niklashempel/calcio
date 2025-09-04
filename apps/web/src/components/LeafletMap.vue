@@ -5,6 +5,9 @@
 <script setup lang="ts">
 import type { MatchDto } from '@/types/api';
 import L from 'leaflet';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet/dist/leaflet.css';
 import { createApp, onMounted, onUnmounted, ref, watch, type App } from 'vue';
 import MatchPopup from './MatchPopup.vue';
@@ -29,7 +32,7 @@ const emit = defineEmits<{
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
-let markersLayer: L.LayerGroup | null = null;
+let markersCluster: L.MarkerClusterGroup | null = null;
 const popupApps = new Map<number, { app: App; el: HTMLElement }>();
 let skipNextMoveEnd = false;
 
@@ -60,7 +63,27 @@ onMounted(() => {
     attribution:
       '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> Contributors',
   }).addTo(map);
-  markersLayer = L.layerGroup().addTo(map);
+
+  // Create marker cluster group with custom options
+  markersCluster = L.markerClusterGroup({
+    chunkedLoading: true,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    maxClusterRadius: 50,
+    iconCreateFunction: function(cluster) {
+      const count = cluster.getChildCount();
+      let className = 'marker-cluster-small';
+      if (count >= 10) className = 'marker-cluster-medium';
+      if (count >= 50) className = 'marker-cluster-large';
+
+      return L.divIcon({
+        html: `<div><span>${count}</span></div>`,
+        className: `marker-cluster ${className}`,
+        iconSize: L.point(40, 40)
+      });
+    }
+  }).addTo(map);
 
   map.on('moveend', () => {
     if (skipNextMoveEnd) {
@@ -90,17 +113,17 @@ onMounted(() => {
 onUnmounted(() => {
   map?.remove();
   map = null;
-  markersLayer = null;
+  markersCluster = null;
 });
 
 watch(
   () => props.markers,
   (list) => {
-    if (!map || !markersLayer) return;
+    if (!map || !markersCluster) return;
     // Unmount previous mounted popup apps
     for (const entry of popupApps.values()) entry.app.unmount();
     popupApps.clear();
-    markersLayer.clearLayers();
+    markersCluster.clearLayers();
     for (const m of list) {
       const marker = L.marker([m.lat, m.lng]);
       if (m.popupHtml) {
@@ -123,7 +146,7 @@ watch(
           }
         });
       }
-      markersLayer.addLayer(marker);
+      markersCluster.addLayer(marker);
     }
   },
   { deep: true },
@@ -134,5 +157,47 @@ watch(
 .leaflet-map {
   height: 100%;
   width: 100%;
+}
+</style>
+
+<style>
+/* Global styles for marker clusters */
+.marker-cluster-small {
+  background-color: rgba(181, 226, 140, 0.8);
+}
+.marker-cluster-small div {
+  background-color: rgba(110, 204, 57, 0.8);
+}
+
+.marker-cluster-medium {
+  background-color: rgba(241, 211, 87, 0.8);
+}
+.marker-cluster-medium div {
+  background-color: rgba(240, 194, 12, 0.8);
+}
+
+.marker-cluster-large {
+  background-color: rgba(253, 156, 115, 0.8);
+}
+.marker-cluster-large div {
+  background-color: rgba(241, 128, 23, 0.8);
+}
+
+.marker-cluster {
+  border-radius: 20px;
+}
+.marker-cluster div {
+  width: 30px;
+  height: 30px;
+  margin-left: 5px;
+  margin-top: 5px;
+  text-align: center;
+  border-radius: 15px;
+  font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+.marker-cluster span {
+  line-height: 30px;
+  color: #000;
+  font-weight: bold;
 }
 </style>
