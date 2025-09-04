@@ -5,10 +5,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Api.Data;
 
-namespace Api.IntegrationTests.Tests;
+namespace Api.IntegrationTests.Setup;
 
 public class CalcioWebApplicationFactory : WebApplicationFactory<Program>
 {
+    private readonly string _databaseName;
+
+    public CalcioWebApplicationFactory()
+    {
+        _databaseName = Guid.NewGuid().ToString();
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
@@ -17,11 +24,11 @@ public class CalcioWebApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll(typeof(DbContextOptions<CalcioDbContext>));
             services.RemoveAll(typeof(CalcioDbContext));
 
-            // Add in-memory database for testing
+            // Add in-memory database for testing with unique name
             services.AddDbContext<CalcioDbContext>(options =>
             {
                 // InMemory database doesn't support NetTopologySuite, so we'll work with Latitude/Longitude in tests
-                options.UseInMemoryDatabase("TestDatabase");
+                options.UseInMemoryDatabase(_databaseName);
             });
 
             // Build the service provider and create the database

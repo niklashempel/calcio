@@ -10,7 +10,17 @@ namespace Api.DTOs.Requests
 
         public double? MaxLng { get; set; }
 
+        public DateTime? MinDate { get; set; }
+
+        public DateTime? MaxDate { get; set; }
+
+        public IEnumerable<int?>? Competitions { get; set; }
+
+        public IEnumerable<int?>? AgeGroups { get; set; }
+
         public bool HasValidBoundingBox => MinLat.HasValue && MaxLat.HasValue && MinLng.HasValue && MaxLng.HasValue;
+
+        public bool HasValidDateRange => MinDate.HasValue && MaxDate.HasValue;
 
         public bool IsBoundingBoxValid()
         {
@@ -19,6 +29,12 @@ namespace Api.DTOs.Requests
             return MinLat <= MaxLat && MinLng <= MaxLng &&
                    MinLat >= -90 && MaxLat <= 90 &&
                    MinLng >= -180 && MaxLng <= 180;
+        }
+
+        public bool IsDateRangeValid()
+        {
+            if (!HasValidDateRange) { return true; }
+            return MinDate <= MaxDate;
         }
     }
 }

@@ -133,6 +133,21 @@ public class MatchService : IMatchService
                 m.Venue.Location.X >= request.MinLng && m.Venue.Location.X <= request.MaxLng);
         }
 
+        if (request.HasValidDateRange)
+        {
+            query = query.Where(m => m.Time.HasValue && request.MinDate!.Value.Date <= m.Time.Value.Date && m.Time.Value.Date <= request.MaxDate!.Value.Date);
+        }
+
+        if (request.Competitions != null)
+        {
+            query = query.Where(m => request.Competitions.Contains(m.CompetitionId));
+        }
+
+        if (request.AgeGroups != null)
+        {
+            query = query.Where(m => request.AgeGroups.Contains(m.AgeGroupId));
+        }
+
         var matches = await query.Select(x => x.ToDto()).ToListAsync();
         return Calcio.Api.Core.Logic.MatchGrouping.GroupByVenue(matches, _dateTimeProvider.Now);
     }

@@ -4,6 +4,7 @@ using Calcio.Api.Core.DTOs;
 using Api.DTOs.Requests;
 using Microsoft.Extensions.DependencyInjection;
 using Api.Data;
+using Api.IntegrationTests.Setup;
 
 namespace Api.IntegrationTests.Tests;
 

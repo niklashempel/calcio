@@ -5,6 +5,7 @@ using Api.DTOs.Requests;
 using Microsoft.Extensions.DependencyInjection;
 using Api.Data;
 using Api.Models;
+using Api.IntegrationTests.Setup;
 
 namespace Api.IntegrationTests.Tests;
 
