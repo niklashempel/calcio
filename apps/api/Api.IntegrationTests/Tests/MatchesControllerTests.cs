@@ -6,6 +6,7 @@ using Api.Data;
 using Api.Models;
 using Calcio.Api.Core.DTOs;
 using NetTopologySuite.Geometries;
+using Api.IntegrationTests.Setup;
 
 namespace Api.IntegrationTests.Tests;
 
