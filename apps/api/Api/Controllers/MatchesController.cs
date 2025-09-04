@@ -68,6 +68,11 @@ public class MatchesController : ControllerBase
                 return BadRequest("Invalid bounding box coordinates. MinLat must be <= MaxLat, MinLng must be <= MaxLng, and coordinates must be within valid geographic ranges.");
             }
 
+            if (!request.IsDateRangeValid())
+            {
+                return BadRequest("Invalid date range. MinDate must be <= MaxDate.");
+            }
+
             var grouped = await _matchService.GetMatchesAsync(request);
             return Ok(grouped);
         }
