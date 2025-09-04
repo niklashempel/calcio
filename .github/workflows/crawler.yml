@@ -1,0 +1,45 @@
+name: Crawler CI
+
+on:
+  push:
+    paths:
+      - "apps/crawler/**"
+      - ".github/workflows/crawler.yml"
+  pull_request:
+    paths:
+      - "apps/crawler/**"
+      - ".github/workflows/crawler.yml"
+
+jobs:
+  check:
+    name: Check and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/crawler
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Lint with ruff
+        run: |
+          pip install ruff
+          ruff check .
+
+      - name: Format check with ruff
+        run: ruff format --check .
+
+      - name: Run tests
+        run: |
+          pip install pytest pytest-cov
+          pytest tests/ --cov=src --cov-report=term-missing
