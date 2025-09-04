@@ -80,4 +80,23 @@ public static class EntityExtensions
             }
         };
     }
+
+    public static MatchFilterOptionsDto ToDto(this MatchFilterOptions matchFilterOptions)
+    {
+        return new MatchFilterOptionsDto
+        {
+            MinDate = matchFilterOptions.MinDate,
+            MaxDate = matchFilterOptions.MaxDate,
+            Competitions = matchFilterOptions.Competitions.Select(c => new CompetitionFilterDto
+            {
+                Id = c.Id,
+                Name = c.Name ?? string.Empty
+            }).OrderBy(c => c.Name),
+            AgeGroups = matchFilterOptions.AgeGroups.Select(ag => new AgeGroupFilterDto
+            {
+                Id = ag.Id,
+                Name = ag.Name ?? string.Empty
+            }).OrderBy(ag => ag.Name),
+        };
+    }
 }

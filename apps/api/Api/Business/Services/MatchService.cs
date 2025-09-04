@@ -151,4 +151,41 @@ public class MatchService : IMatchService
         var matches = await query.Select(x => x.ToDto()).ToListAsync();
         return Calcio.Api.Core.Logic.MatchGrouping.GroupByVenue(matches, _dateTimeProvider.Now);
     }
+
+    public async Task<MatchFilterOptionsDto> GetMatchFilterOptionsAsync()
+    {
+        var dateRange = await _context.Matches
+            .Where(m => m.Time.HasValue)
+            .GroupBy(m => 1)
+            .Select(g => new
+            {
+                MinDate = g.Min(m => m.Time),
+                MaxDate = g.Max(m => m.Time)
+            })
+            .FirstOrDefaultAsync();
+
+        var competitions = await _context.Matches
+            .Include(m => m.Competition)
+            .Where(m => m.Competition != null)
+            .Select(m => m.Competition!)
+            .Distinct()
+            .ToListAsync();
+
+        var ageGroups = await _context.Matches
+            .Include(m => m.AgeGroup)
+            .Where(m => m.AgeGroup != null)
+            .Select(m => m.AgeGroup!)
+            .Distinct()
+            .ToListAsync();
+
+        var filterOptions = new MatchFilterOptions
+        {
+            MinDate = dateRange?.MinDate,
+            MaxDate = dateRange?.MaxDate,
+            Competitions = competitions,
+            AgeGroups = ageGroups
+        };
+
+        return filterOptions.ToDto();
+    }
 }

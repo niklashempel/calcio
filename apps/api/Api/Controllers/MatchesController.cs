@@ -81,4 +81,12 @@ public class MatchesController : ControllerBase
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpGet("filter-options")]
+    [ProducesResponseType(typeof(MatchFilterOptionsDto), 200)]
+    public async Task<ActionResult<MatchFilterOptionsDto>> GetMatchFilterOptions()
+    {
+        var filterOptions = await _matchService.GetMatchFilterOptionsAsync();
+        return Ok(filterOptions);
+    }
 }

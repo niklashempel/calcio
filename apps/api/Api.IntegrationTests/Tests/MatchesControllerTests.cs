@@ -341,6 +341,117 @@ public class MatchesControllerTests : IClassFixture<CalcioWebApplicationFactory>
         Assert.Empty(groupedMatches);
     }
 
+    [Fact]
+    public async Task GetMatchFilterOptions_WithNoMatches_ReturnsEmptyFilterOptions()
+    {
+        // Act
+        var response = await _client.GetAsync("/api/matches/filter-options");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var filterOptions = await response.Content.ReadFromJsonAsync<MatchFilterOptionsDto>();
+        Assert.NotNull(filterOptions);
+        Assert.Null(filterOptions.MinDate);
+        Assert.Null(filterOptions.MaxDate);
+        Assert.Empty(filterOptions.Competitions);
+        Assert.Empty(filterOptions.AgeGroups);
+    }
+
+    [Fact]
+    public async Task GetMatchFilterOptions_WithMatches_ReturnsCorrectFilterOptions()
+    {
+        // Arrange
+        await SeedTestDataForFilterOptions();
+
+        // Act
+        var response = await _client.GetAsync("/api/matches/filter-options");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var filterOptions = await response.Content.ReadFromJsonAsync<MatchFilterOptionsDto>();
+        Assert.NotNull(filterOptions);
+
+        // Verify date range
+        Assert.NotNull(filterOptions.MinDate);
+        Assert.NotNull(filterOptions.MaxDate);
+        Assert.True(filterOptions.MinDate <= filterOptions.MaxDate);
+
+        // Verify competitions
+        Assert.NotEmpty(filterOptions.Competitions);
+        var competitionsList = filterOptions.Competitions.ToList();
+        Assert.Contains(competitionsList, c => c.Name == "League A");
+        Assert.Contains(competitionsList, c => c.Name == "League B");
+        Assert.Contains(competitionsList, c => c.Name == "Cup Competition");
+
+        // Verify age groups
+        Assert.NotEmpty(filterOptions.AgeGroups);
+        var ageGroupsList = filterOptions.AgeGroups.ToList();
+        Assert.Contains(ageGroupsList, ag => ag.Name == "U16");
+        Assert.Contains(ageGroupsList, ag => ag.Name == "U18");
+        Assert.Contains(ageGroupsList, ag => ag.Name == "Seniors");
+
+        // Verify ordering (should be alphabetical)
+        var sortedCompetitions = competitionsList.OrderBy(c => c.Name).ToList();
+        Assert.Equal(sortedCompetitions.Select(c => c.Name), competitionsList.Select(c => c.Name));
+
+        var sortedAgeGroups = ageGroupsList.OrderBy(ag => ag.Name).ToList();
+        Assert.Equal(sortedAgeGroups.Select(ag => ag.Name), ageGroupsList.Select(ag => ag.Name));
+    }
+
+    [Fact]
+    public async Task GetMatchFilterOptions_WithDuplicateCompetitionsAndAgeGroups_ReturnsDistinctOptions()
+    {
+        // Arrange
+        await SeedTestDataWithDuplicates();
+
+        // Act
+        var response = await _client.GetAsync("/api/matches/filter-options");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var filterOptions = await response.Content.ReadFromJsonAsync<MatchFilterOptionsDto>();
+        Assert.NotNull(filterOptions);
+
+        // Verify that duplicate competitions are deduplicated
+        var competitionNames = filterOptions.Competitions.Select(c => c.Name).ToList();
+        Assert.Equal(competitionNames.Count, competitionNames.Distinct().Count());
+
+        // Verify that duplicate age groups are deduplicated
+        var ageGroupNames = filterOptions.AgeGroups.Select(ag => ag.Name).ToList();
+        Assert.Equal(ageGroupNames.Count, ageGroupNames.Distinct().Count());
+
+        // Should have exactly 2 competitions and 2 age groups
+        Assert.Equal(2, filterOptions.Competitions.Count());
+        Assert.Equal(2, filterOptions.AgeGroups.Count());
+    }
+
+    [Fact]
+    public async Task GetMatchFilterOptions_WithMatchesWithoutDates_HandlesNullDatesGracefully()
+    {
+        // Arrange
+        await SeedTestDataWithNullDates();
+
+        // Act
+        var response = await _client.GetAsync("/api/matches/filter-options");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var filterOptions = await response.Content.ReadFromJsonAsync<MatchFilterOptionsDto>();
+        Assert.NotNull(filterOptions);
+
+        // When all matches have null dates, min/max should be null
+        Assert.Null(filterOptions.MinDate);
+        Assert.Null(filterOptions.MaxDate);
+
+        // But competitions and age groups should still be returned
+        Assert.NotEmpty(filterOptions.Competitions);
+        Assert.NotEmpty(filterOptions.AgeGroups);
+    }
+
     private async Task SeedTestData()
     {
         using var scope = _factory.Services.CreateScope();
@@ -740,6 +851,231 @@ public class MatchesControllerTests : IClassFixture<CalcioWebApplicationFactory>
                 CompetitionId = competition1.Id, // League A
                 AgeGroupId = ageGroup1.Id, // U16
                 Time = new DateTime(2025, 10, 15) // October 15, 2025 (outside date range)
+            }
+        };
+
+        context.Matches.AddRange(matches);
+        await context.SaveChangesAsync();
+    }
+
+    private async Task SeedTestDataForFilterOptions()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CalcioDbContext>();
+
+        // Create test clubs
+        var club1 = new Club { Name = "Test Club 1" };
+        var club2 = new Club { Name = "Test Club 2" };
+        context.Clubs.AddRange(club1, club2);
+        await context.SaveChangesAsync();
+
+        // Create multiple age groups
+        var ageGroup1 = new AgeGroup { Name = "U16" };
+        var ageGroup2 = new AgeGroup { Name = "U18" };
+        var ageGroup3 = new AgeGroup { Name = "Seniors" };
+        context.AgeGroups.AddRange(ageGroup1, ageGroup2, ageGroup3);
+        await context.SaveChangesAsync();
+
+        // Create multiple competitions
+        var competition1 = new Competition { Name = "League A" };
+        var competition2 = new Competition { Name = "League B" };
+        var competition3 = new Competition { Name = "Cup Competition" };
+        context.Competitions.AddRange(competition1, competition2, competition3);
+        await context.SaveChangesAsync();
+
+        // Create test venue
+        var geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+        var venue = new Venue
+        {
+            Address = "Test Venue",
+            Location = geometryFactory.CreatePoint(new Coordinate(13.75, 51.05))
+        };
+        context.Venues.Add(venue);
+        await context.SaveChangesAsync();
+
+        // Create test teams
+        var team1 = new Team { Name = "Test Team 1", ClubId = club1.Id };
+        var team2 = new Team { Name = "Test Team 2", ClubId = club2.Id };
+        context.Teams.AddRange(team1, team2);
+        await context.SaveChangesAsync();
+
+        // Create test matches with different combinations
+        var matches = new List<Match>
+        {
+            new()
+            {
+                HomeTeamId = team1.Id,
+                AwayTeamId = team2.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition1.Id, // League A
+                AgeGroupId = ageGroup1.Id, // U16
+                Time = new DateTime(2025, 9, 10, 14, 0, 0, DateTimeKind.Utc)
+            },
+            new()
+            {
+                HomeTeamId = team2.Id,
+                AwayTeamId = team1.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition2.Id, // League B
+                AgeGroupId = ageGroup2.Id, // U18
+                Time = new DateTime(2025, 9, 15, 16, 0, 0, DateTimeKind.Utc)
+            },
+            new()
+            {
+                HomeTeamId = team1.Id,
+                AwayTeamId = team2.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition3.Id, // Cup Competition
+                AgeGroupId = ageGroup3.Id, // Seniors
+                Time = new DateTime(2025, 9, 20, 18, 0, 0, DateTimeKind.Utc)
+            }
+        };
+
+        context.Matches.AddRange(matches);
+        await context.SaveChangesAsync();
+    }
+
+    private async Task SeedTestDataWithDuplicates()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CalcioDbContext>();
+
+        // Create test clubs
+        var club1 = new Club { Name = "Test Club 1" };
+        var club2 = new Club { Name = "Test Club 2" };
+        context.Clubs.AddRange(club1, club2);
+        await context.SaveChangesAsync();
+
+        // Create age groups
+        var ageGroup1 = new AgeGroup { Name = "U16" };
+        var ageGroup2 = new AgeGroup { Name = "U18" };
+        context.AgeGroups.AddRange(ageGroup1, ageGroup2);
+        await context.SaveChangesAsync();
+
+        // Create competitions
+        var competition1 = new Competition { Name = "League A" };
+        var competition2 = new Competition { Name = "League B" };
+        context.Competitions.AddRange(competition1, competition2);
+        await context.SaveChangesAsync();
+
+        // Create test venue
+        var geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+        var venue = new Venue
+        {
+            Address = "Test Venue",
+            Location = geometryFactory.CreatePoint(new Coordinate(13.75, 51.05))
+        };
+        context.Venues.Add(venue);
+        await context.SaveChangesAsync();
+
+        // Create test teams
+        var team1 = new Team { Name = "Test Team 1", ClubId = club1.Id };
+        var team2 = new Team { Name = "Test Team 2", ClubId = club2.Id };
+        context.Teams.AddRange(team1, team2);
+        await context.SaveChangesAsync();
+
+        // Create multiple matches with the same competition and age group combinations
+        var matches = new List<Match>
+        {
+            new()
+            {
+                HomeTeamId = team1.Id,
+                AwayTeamId = team2.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition1.Id, // League A
+                AgeGroupId = ageGroup1.Id, // U16
+                Time = new DateTime(2025, 9, 10, 14, 0, 0, DateTimeKind.Utc)
+            },
+            new()
+            {
+                HomeTeamId = team2.Id,
+                AwayTeamId = team1.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition1.Id, // League A (duplicate)
+                AgeGroupId = ageGroup1.Id, // U16 (duplicate)
+                Time = new DateTime(2025, 9, 12, 16, 0, 0, DateTimeKind.Utc)
+            },
+            new()
+            {
+                HomeTeamId = team1.Id,
+                AwayTeamId = team2.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition2.Id, // League B
+                AgeGroupId = ageGroup2.Id, // U18
+                Time = new DateTime(2025, 9, 15, 18, 0, 0, DateTimeKind.Utc)
+            },
+            new()
+            {
+                HomeTeamId = team2.Id,
+                AwayTeamId = team1.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition2.Id, // League B (duplicate)
+                AgeGroupId = ageGroup2.Id, // U18 (duplicate)
+                Time = new DateTime(2025, 9, 18, 20, 0, 0, DateTimeKind.Utc)
+            }
+        };
+
+        context.Matches.AddRange(matches);
+        await context.SaveChangesAsync();
+    }
+
+    private async Task SeedTestDataWithNullDates()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CalcioDbContext>();
+
+        // Create test clubs
+        var club1 = new Club { Name = "Test Club 1" };
+        var club2 = new Club { Name = "Test Club 2" };
+        context.Clubs.AddRange(club1, club2);
+        await context.SaveChangesAsync();
+
+        // Create age group
+        var ageGroup = new AgeGroup { Name = "U16" };
+        context.AgeGroups.Add(ageGroup);
+        await context.SaveChangesAsync();
+
+        // Create competition
+        var competition = new Competition { Name = "Test Competition" };
+        context.Competitions.Add(competition);
+        await context.SaveChangesAsync();
+
+        // Create test venue
+        var geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+        var venue = new Venue
+        {
+            Address = "Test Venue",
+            Location = geometryFactory.CreatePoint(new Coordinate(13.75, 51.05))
+        };
+        context.Venues.Add(venue);
+        await context.SaveChangesAsync();
+
+        // Create test teams
+        var team1 = new Team { Name = "Test Team 1", ClubId = club1.Id };
+        var team2 = new Team { Name = "Test Team 2", ClubId = club2.Id };
+        context.Teams.AddRange(team1, team2);
+        await context.SaveChangesAsync();
+
+        // Create matches with null dates
+        var matches = new List<Match>
+        {
+            new()
+            {
+                HomeTeamId = team1.Id,
+                AwayTeamId = team2.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition.Id,
+                AgeGroupId = ageGroup.Id,
+                Time = null // Null date
+            },
+            new()
+            {
+                HomeTeamId = team2.Id,
+                AwayTeamId = team1.Id,
+                VenueId = venue.Id,
+                CompetitionId = competition.Id,
+                AgeGroupId = ageGroup.Id,
+                Time = null // Null date
             }
         };
 
