@@ -1,22 +1,35 @@
-import { globalIgnores } from 'eslint/config';
-import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript';
-import pluginVue from 'eslint-plugin-vue';
-import skipFormatting from '@vue/eslint-config-prettier/skip-formatting';
+import tsParser from '@typescript-eslint/parser';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
 
-// To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
-// import { configureVueProject } from '@vue/eslint-config-typescript'
-// configureVueProject({ scriptLangs: ['ts', 'tsx'] })
-// More info at https://github.com/vuejs/eslint-config-typescript/#advanced-setup
-
-export default defineConfigWithVueTs(
+export default [
   {
-    name: 'app/files-to-lint',
-    files: ['**/*.{ts,mts,tsx,vue}'],
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      react: react,
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
-
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
-
-  pluginVue.configs['flat/essential'],
-  vueTsConfigs.recommended,
-  skipFormatting,
-);
+  {
+    ignores: ['dist/**', 'node_modules/**'],
+  },
+];
