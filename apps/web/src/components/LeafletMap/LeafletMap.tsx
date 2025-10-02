@@ -3,7 +3,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import './LeafletMap.css';
 
 interface MarkerInput {
@@ -42,7 +42,7 @@ function LeafletMap({ markers, className, onBoundsChanged, onReady }: LeafletMap
     });
   }, []);
 
-  const emitBounds = () => {
+  const emitBounds = useCallback(() => {
     if (!mapInstanceRef.current) return;
     const b = mapInstanceRef.current.getBounds();
     onBoundsChanged({
@@ -51,7 +51,7 @@ function LeafletMap({ markers, className, onBoundsChanged, onReady }: LeafletMap
       minLng: b.getWest(),
       maxLng: b.getEast(),
     });
-  };
+  }, [onBoundsChanged]);
 
   // Initialize map
   useEffect(() => {
@@ -118,7 +118,7 @@ function LeafletMap({ markers, className, onBoundsChanged, onReady }: LeafletMap
       mapInstanceRef.current = null;
       markerClusterRef.current = null;
     };
-  }, [onReady]);
+  }, [onReady, emitBounds]);
 
   // Update markers when markers prop changes
   useEffect(() => {
