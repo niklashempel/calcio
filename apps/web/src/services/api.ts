@@ -1,4 +1,4 @@
-import type { GetMatchesRequest, GroupedMatches } from '@/types/api';
+import type { GetMatchesRequest, GroupedMatches, MatchLocationDto } from '@/types/api';
 
 // Use relative base so nginx proxy (/api -> backend) avoids CORS
 const API_BASE_URL = '/api';
@@ -21,7 +21,7 @@ export class ApiService {
     return response.json();
   }
 
-  static async getMatches(request: GetMatchesRequest): Promise<GroupedMatches[]> {
+  static async getMatchLocations(request: GetMatchesRequest): Promise<MatchLocationDto[]> {
     const params = new URLSearchParams();
 
     if (request.minLat !== undefined) params.append('minLat', request.minLat.toString());
@@ -32,6 +32,10 @@ export class ApiService {
     const queryString = params.toString();
     const endpoint = `/matches${queryString ? `?${queryString}` : ''}`;
 
-    return this.fetchApi<GroupedMatches[]>(endpoint);
+    return this.fetchApi<MatchLocationDto[]>(endpoint);
+  }
+
+  static async getMatchesByVenue(venueId: number): Promise<GroupedMatches> {
+    return this.fetchApi<GroupedMatches>(`/matches/${venueId}`);
   }
 }

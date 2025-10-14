@@ -1,14 +1,13 @@
-import type { GroupedMatches, MatchDto } from '@/types/api';
+import type { GroupedMatches, MatchDto, MatchLocationDto } from '@/types/api';
 import { describe, expect, it } from 'vitest';
-import { buildMarkers } from '../markers';
+import { buildMarkers, buildPopupHtml } from '../markers';
 
-function match(id: number, venueId: number, offsetHours: number): MatchDto {
+function match(id: number, offsetHours: number): MatchDto {
   const date = new Date();
   date.setHours(date.getHours() + offsetHours);
   return {
     id,
     time: date.toISOString(),
-    venue: { id: venueId, latitude: 10 + venueId, longitude: 20 + venueId },
     homeTeam: { id: id * 10 + 1, name: 'Heim' + id },
     awayTeam: { id: id * 10 + 2, name: 'Gast' + id },
     competition: { id: 1, name: 'Liga' },
@@ -16,33 +15,96 @@ function match(id: number, venueId: number, offsetHours: number): MatchDto {
   } as MatchDto;
 }
 
+describe('buildPopupHtml', () => {
+  it('generates popup HTML with grouped matches', () => {
+    const grouped: GroupedMatches = {
+      today: [match(1, 0)],
+      upcoming: [match(2, 30)],
+      past: [match(3, -30)],
+    };
+    const venue = { address: 'Test Stadium' };
+
+    const html = buildPopupHtml(grouped, venue);
+
+    expect(html).toContain('Test Stadium');
+    expect(html).toContain('3 Spiele');
+    expect(html).toContain('Heute');
+    expect(html).toContain('Nächste Spiele');
+    expect(html).toContain('Letzte Spiele');
+  });
+
+  it('shows correct singular/plural for match count', () => {
+    const grouped: GroupedMatches = {
+      today: [match(1, 0)],
+      upcoming: [],
+      past: [],
+    };
+
+    const html = buildPopupHtml(grouped);
+
+    expect(html).toContain('1 Spiel');
+    expect(html).not.toContain('1 Spiele');
+  });
+
+  it('uses fallback text when no venue provided', () => {
+    const grouped: GroupedMatches = {
+      today: [],
+      upcoming: [],
+      past: [],
+    };
+
+    const html = buildPopupHtml(grouped);
+
+    expect(html).toContain('Spielort');
+  });
+});
+
 describe('buildMarkers', () => {
-  it('creates markers from grouped matches', () => {
-    const raw: MatchDto[] = [match(1, 1, 0), match(2, 1, 30), match(3, 2, -30)];
-    const grouped: GroupedMatches[] = [
+  it('creates markers from location data with loading state', () => {
+    const locations: MatchLocationDto[] = [
       {
-        venueId: 1,
-        venue: raw[0]!.venue,
-        count: 2,
-        today: [raw[0]!],
-        upcoming: [raw[1]!],
-        past: [],
+        venue: { id: 1, latitude: 11, longitude: 21, address: 'Venue 1' },
       },
       {
-        venueId: 2,
-        venue: raw[2]!.venue,
-        count: 1,
-        today: [],
-        upcoming: [],
-        past: [raw[2]!],
+        venue: { id: 2, latitude: 12, longitude: 22, address: 'Venue 2' },
       },
     ];
-    const markers = buildMarkers(grouped);
+
+    const markers = buildMarkers(locations);
+
     expect(markers.length).toBe(2);
-    const popup1 = markers.find((m) => m.id === 1)!.popupHtml;
-    expect(popup1).toContain('Heute');
-    expect(popup1).toContain('Nächste Spiele');
-    const popup2 = markers.find((m) => m.id === 2)!.popupHtml;
-    expect(popup2).toContain('Letzte Spiele');
+
+    const marker1 = markers.find((m) => m.id === 1)!;
+    expect(marker1.lat).toBe(11);
+    expect(marker1.lng).toBe(21);
+    expect(marker1.popupHtml).toContain('loading');
+    expect(marker1.popupHtml).toContain('Lade Spiele');
+
+    const marker2 = markers.find((m) => m.id === 2)!;
+    expect(marker2.lat).toBe(12);
+    expect(marker2.lng).toBe(22);
+    expect(marker2.popupHtml).toContain('loading');
+  });
+
+  it('filters out locations without coordinates', () => {
+    const locations: MatchLocationDto[] = [
+      {
+        venue: { id: 1, latitude: 11, longitude: 21 },
+      },
+      {
+        venue: { id: 2, latitude: undefined, longitude: 22 },
+      },
+      {
+        venue: { id: 3, latitude: 13, longitude: undefined },
+      },
+      {
+        venue: undefined,
+      },
+    ];
+
+    const markers = buildMarkers(locations);
+
+    expect(markers.length).toBe(1);
+    expect(markers[0]!.id).toBe(1);
   });
 });

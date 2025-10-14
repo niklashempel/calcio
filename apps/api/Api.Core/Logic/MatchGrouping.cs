@@ -1,29 +1,22 @@
+using System.Text.RegularExpressions;
 using Calcio.Api.Core.DTOs;
 
 namespace Calcio.Api.Core.Logic;
 
 public static class MatchGrouping
 {
-    public static IEnumerable<GroupedMatchesByVenueDto> GroupByVenue(IEnumerable<MatchDto> matches, DateTime referenceUtc)
+    public static GroupedMatchesByVenueDto GroupByTime(IEnumerable<MatchDto> matches, DateTime referenceUtc)
     {
         var list = matches.Where(m => m.Venue?.Id != null && m.Venue.Latitude.HasValue && m.Venue.Longitude.HasValue);
-        var groups = new Dictionary<int, GroupedMatchesByVenueDto>();
 
         var todayStart = new DateTime(referenceUtc.Year, referenceUtc.Month, referenceUtc.Day, 0, 0, 0, DateTimeKind.Utc);
         var todayEnd = todayStart.AddDays(1);
 
+        var groupedMatch = new GroupedMatchesByVenueDto();
+
         foreach (var match in list)
         {
             var venueId = match.Venue!.Id;
-            if (!groups.TryGetValue(venueId, out var groupedMatch))
-            {
-                groupedMatch = new GroupedMatchesByVenueDto
-                {
-                    VenueId = venueId,
-                    Venue = match.Venue
-                };
-                groups[venueId] = groupedMatch;
-            }
 
             if (match.Time.HasValue)
             {
@@ -36,16 +29,12 @@ public static class MatchGrouping
             {
                 groupedMatch.Past.Add(match);
             }
-            groupedMatch.Count++;
         }
 
-        foreach (var g in groups.Values)
-        {
-            g.Today = g.Today.OrderBy(m => m.Time).ToList();
-            g.Upcoming = g.Upcoming.OrderBy(m => m.Time).ToList();
-            g.Past = g.Past.OrderBy(m => m.Time).ToList();
-        }
+        groupedMatch.Today = groupedMatch.Today.OrderBy(m => m.Time).ToList();
+        groupedMatch.Upcoming = groupedMatch.Upcoming.OrderBy(m => m.Time).ToList();
+        groupedMatch.Past = groupedMatch.Past.OrderBy(m => m.Time).ToList();
 
-        return groups.Values.OrderBy(v => v.VenueId).ToList();
+        return groupedMatch;
     }
 }

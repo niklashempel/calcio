@@ -1,4 +1,4 @@
-import type { GroupedMatches, MatchDto } from '@/types/api';
+import type { GroupedMatches, MatchDto, MatchLocationDto } from '@/types/api';
 import { formatMatch } from './formatting';
 
 export interface MarkerData {
@@ -8,9 +8,9 @@ export interface MarkerData {
   popupHtml: string;
 }
 
-function buildPopupHtml(group: GroupedMatches): string {
-  const v = group.venue;
-  if (!v) return '';
+export function buildPopupHtml(group: GroupedMatches, venue?: { address?: string }): string {
+  const totalCount = group.today.length + group.upcoming.length + group.past.length;
+
   // Server already returns sorted ascending per bucket; we reverse past for display (latest first)
   const today = [...group.today];
   const upcoming = [...group.upcoming];
@@ -20,6 +20,7 @@ function buildPopupHtml(group: GroupedMatches): string {
     if (!b.time) return -1;
     return b.time.localeCompare(a.time); // desc
   });
+
   const fmt = (m: MatchDto) => {
     const bits = formatMatch(m);
     const openTag = m.url ? `<a href="${m.url}" target="_blank" rel="noopener noreferrer">` : '';
@@ -32,13 +33,15 @@ function buildPopupHtml(group: GroupedMatches): string {
       `${closeTag}</li>`
     );
   };
+
   const buildSection = (title: string, arr: MatchDto[]) => {
     if (!arr.length) return '';
     return `<h4 class="group">${title} (${arr.length})</h4><ul class="matches match-cards">${arr.map(fmt).join('')}</ul>`;
   };
+
   return `
     <div class="match-popup">
-      <h3>${v.address || 'Spielort'} (${group.count} Spiel${group.count !== 1 ? 'e' : ''})</h3>
+      <h3>${venue?.address || 'Spielort'} (${totalCount} Spiel${totalCount !== 1 ? 'e' : ''})</h3>
       ${buildSection('Heute', today)}
       ${buildSection('Nächste Spiele', upcoming)}
       ${buildSection('Letzte Spiele', past)}
@@ -46,13 +49,13 @@ function buildPopupHtml(group: GroupedMatches): string {
   `;
 }
 
-export function buildMarkers(groups: GroupedMatches[]): MarkerData[] {
-  return groups
-    .filter((g) => g.venue && g.venue.latitude != null && g.venue.longitude != null)
-    .map((g) => ({
-      id: g.venueId,
-      lat: g.venue!.latitude!,
-      lng: g.venue!.longitude!,
-      popupHtml: buildPopupHtml(g),
+export function buildMarkers(locations: MatchLocationDto[]): MarkerData[] {
+  return locations
+    .filter((loc) => loc.venue?.latitude != null && loc.venue?.longitude != null)
+    .map((loc) => ({
+      id: loc.venue!.id,
+      lat: loc.venue!.latitude!,
+      lng: loc.venue!.longitude!,
+      popupHtml: '<div class="match-popup loading">Lade Spiele...</div>',
     }));
 }

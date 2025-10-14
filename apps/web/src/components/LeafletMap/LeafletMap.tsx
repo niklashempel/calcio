@@ -23,12 +23,20 @@ interface LeafletMapProps {
     maxLng: number;
   }) => void;
   onReady: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => void;
+  onMarkerClick?: (markerId: number) => void;
 }
 
-function LeafletMap({ markers, className, onBoundsChanged, onReady }: LeafletMapProps) {
+function LeafletMap({
+  markers,
+  className,
+  onBoundsChanged,
+  onReady,
+  onMarkerClick,
+}: LeafletMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  const markerInstancesRef = useRef<Map<number, L.Marker>>(new Map());
   const skipNextMoveEndRef = useRef(false);
 
   // Fix Leaflet default icon paths
@@ -125,18 +133,57 @@ function LeafletMap({ markers, className, onBoundsChanged, onReady }: LeafletMap
     const markerCluster = markerClusterRef.current;
     if (!markerCluster) return;
 
-    // Clear existing markers
+    // Check if we can update existing markers instead of recreating
+    const existingMarkers = markerInstancesRef.current;
+    const newMarkerIds = new Set(markers.map((m) => m.id));
+    const existingMarkerIds = new Set(existingMarkers.keys());
+
+    // If the marker IDs are the same, just update popup content
+    const sameMarkers =
+      newMarkerIds.size === existingMarkerIds.size &&
+      [...newMarkerIds].every((id) => existingMarkerIds.has(id));
+
+    if (sameMarkers) {
+      // Update popup content for existing markers
+      markers.forEach(({ id, popupHtml }) => {
+        const marker = existingMarkers.get(id);
+        if (marker && popupHtml) {
+          const popup = marker.getPopup();
+          if (popup) {
+            popup.setContent(popupHtml);
+          } else {
+            marker.bindPopup(popupHtml, { maxWidth: 380 });
+          }
+        }
+      });
+      return;
+    }
+
+    // Clear existing markers and create new ones
     markerCluster.clearLayers();
+    markerInstancesRef.current.clear();
 
     // Add new markers
-    markers.forEach(({ lat, lng, popupHtml }) => {
+    markers.forEach(({ id, lat, lng, popupHtml }) => {
       const marker = L.marker([lat, lng]);
       if (popupHtml) {
         marker.bindPopup(popupHtml, { maxWidth: 380 });
       }
+
+      if (onMarkerClick) {
+        marker.on('popupopen', () => {
+          // Only trigger if popup contains loading state
+          const popup = marker.getPopup();
+          if (popup && popup.getContent()?.toString().includes('loading')) {
+            onMarkerClick(id);
+          }
+        });
+      }
+
       markerCluster.addLayer(marker);
+      markerInstancesRef.current.set(id, marker);
     });
-  }, [markers]);
+  }, [markers, onMarkerClick]);
 
   return <div ref={mapRef} className={`leaflet-map ${className || ''}`} />;
 }

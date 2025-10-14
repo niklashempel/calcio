@@ -58,8 +58,8 @@ public class MatchesController : ControllerBase
     /// - maxLng: Maximum longitude (east boundary)
     /// </remarks>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<GroupedMatchesByVenueDto>), 200)]
-    public async Task<ActionResult<IEnumerable<GroupedMatchesByVenueDto>>> GetMatches([FromQuery] GetMatchesRequestDto request)
+    [ProducesResponseType(typeof(IEnumerable<MatchLocationDto>), 200)]
+    public async Task<ActionResult<IEnumerable<MatchLocationDto>>> GetMatchLocations([FromQuery] GetMatchLocationsRequestDto request)
     {
         try
         {
@@ -73,7 +73,7 @@ public class MatchesController : ControllerBase
                 return BadRequest("Invalid date range. MinDate must be <= MaxDate.");
             }
 
-            var grouped = await _matchService.GetMatchesAsync(request);
+            var grouped = await _matchService.GetMatchLocationsAsync(request);
             return Ok(grouped);
         }
         catch (Exception ex)
@@ -81,6 +81,28 @@ public class MatchesController : ControllerBase
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpGet("{venueId}")]
+    [ProducesResponseType(typeof(GroupedMatchesByVenueDto), 200)]
+    public async Task<ActionResult<GroupedMatchesByVenueDto>> GetMatches([FromQuery] GetMatchesByVenueRequestDto request, int venueId)
+    {
+
+        try
+        {
+            if (!request.IsDateRangeValid())
+            {
+                return BadRequest("Invalid date range. MinDate must be <= MaxDate.");
+            }
+
+            var grouped = await _matchService.GetMatchesByVenueAsync(venueId, request);
+            return Ok(grouped);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
 
     [HttpGet("filter-options")]
     [ProducesResponseType(typeof(MatchFilterOptionsDto), 200)]

@@ -1,5 +1,5 @@
 import { useMatches } from '@/hooks/useMatches';
-import { buildMarkers } from '@/utils/markers';
+import { buildMarkers, buildPopupHtml } from '@/utils/markers';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import LeafletMap from '../LeafletMap/LeafletMap';
 import './MapControl.css';
@@ -11,19 +11,15 @@ interface Bounds {
   maxLng: number;
 }
 
-function MapControl() {
-  const { matches, loading, load } = useMatches();
+export default function MapControl() {
+  const { locations, loading, loadLocations, loadVenueMatches } = useMatches();
   const [markers, setMarkers] = useState<ReturnType<typeof buildMarkers>>([]);
-  const [currentBounds, setCurrentBounds] = useState<Bounds | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DEBOUNCE_MS = 300;
 
-  const loadMatches = useCallback(async () => {
-    if (!currentBounds) return;
-
-    try {
+  const expandAndLoadBounds = useCallback(
+    (b: Bounds) => {
       // Expand bounds by 50%
-      const b = currentBounds;
       const latCenter = (b.minLat + b.maxLat) / 2;
       const lngCenter = (b.minLng + b.maxLng) / 2;
       const latRange = b.maxLat - b.minLat;
@@ -39,42 +35,53 @@ function MapControl() {
         maxLng: lngCenter + expandedLngRange / 2,
       };
 
-      await load(request);
-    } catch (e) {
-      console.error('Error loading matches:', e);
-    }
-  }, [currentBounds, load]);
+      loadLocations(request).catch((e) => console.error('Error loading matches:', e));
+    },
+    [loadLocations],
+  );
 
-  const onInitialBounds = useCallback((b: Bounds) => {
-    setCurrentBounds(b);
-  }, []);
+  const onInitialBounds = useCallback(
+    (b: Bounds) => {
+      expandAndLoadBounds(b);
+    },
+    [expandAndLoadBounds],
+  );
 
   const onBoundsChanged = useCallback(
     (b: Bounds) => {
-      setCurrentBounds(b);
-
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
 
       debounceTimerRef.current = setTimeout(() => {
-        loadMatches();
+        expandAndLoadBounds(b);
       }, DEBOUNCE_MS);
     },
-    [loadMatches],
+    [expandAndLoadBounds],
   );
 
-  // Update markers when matches change
-  useEffect(() => {
-    setMarkers(buildMarkers(matches));
-  }, [matches]);
+  const onMarkerClick = useCallback(
+    async (markerId: number) => {
+      const matches = await loadVenueMatches(markerId);
+      const location = locations.find((loc) => loc.venue?.id === markerId);
 
-  // Load matches when bounds change
+      // Update the marker's popup with the loaded matches
+      setMarkers((prev) =>
+        prev.map((marker) =>
+          marker.id === markerId
+            ? { ...marker, popupHtml: buildPopupHtml(matches, location?.venue) }
+            : marker,
+        ),
+      );
+    },
+    [loadVenueMatches, locations],
+  );
+
+  // Update markers when locations change
   useEffect(() => {
-    if (currentBounds) {
-      loadMatches();
-    }
-  }, [currentBounds, loadMatches]);
+    const newMarkers = buildMarkers(locations);
+    setMarkers(newMarkers);
+  }, [locations]);
 
   return (
     <div className="map-container">
@@ -83,14 +90,15 @@ function MapControl() {
         markers={markers}
         onBoundsChanged={onBoundsChanged}
         onReady={onInitialBounds}
+        onMarkerClick={onMarkerClick}
       />
-      {(loading || matches.length > 0) && (
+      {(loading || locations.length > 0) && (
         <div className="map-info">
           {loading ? (
             <div className="loading">Lade Spiele...</div>
           ) : (
             <div className="match-count">
-              {matches.length} {matches.length === 1 ? 'Spiel' : 'Spiele'} gefunden
+              {locations.length} {locations.length === 1 ? 'Spielort' : 'Spielorte'} gefunden
             </div>
           )}
         </div>
@@ -98,5 +106,3 @@ function MapControl() {
     </div>
   );
 }
-
-export default MapControl;

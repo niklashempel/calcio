@@ -1,6 +1,6 @@
 namespace Api.DTOs.Requests
 {
-    public class GetMatchesRequestDto
+    public class GetMatchLocationsRequestDto
     {
         public double? MinLat { get; set; }
 

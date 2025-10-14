@@ -8,7 +8,9 @@ public interface IMatchService
 {
     Task<Match> UpsertMatchAsync(UpsertMatchRequestDto request);
 
-    Task<IEnumerable<GroupedMatchesByVenueDto>> GetMatchesAsync(GetMatchesRequestDto request);
+    Task<IEnumerable<MatchLocationDto>> GetMatchLocationsAsync(GetMatchLocationsRequestDto request);
+
+    Task<GroupedMatchesByVenueDto> GetMatchesByVenueAsync(int venueId, GetMatchesByVenueRequestDto request);
 
     Task<MatchFilterOptionsDto> GetMatchFilterOptionsAsync();
 }

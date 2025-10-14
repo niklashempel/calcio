@@ -114,7 +114,7 @@ public class MatchService : IMatchService
         return matchTime;
     }
 
-    public async Task<IEnumerable<GroupedMatchesByVenueDto>> GetMatchesAsync(GetMatchesRequestDto request)
+    public async Task<IEnumerable<MatchLocationDto>> GetMatchLocationsAsync(GetMatchLocationsRequestDto request)
     {
         var query = _context.Matches
             .Include(m => m.Venue)
@@ -148,8 +148,11 @@ public class MatchService : IMatchService
             query = query.Where(m => request.AgeGroups.Contains(m.AgeGroupId));
         }
 
-        var matches = await query.Select(x => x.ToDto()).ToListAsync();
-        return Calcio.Api.Core.Logic.MatchGrouping.GroupByVenue(matches, _dateTimeProvider.Now);
+        var venues = await query.Select(x => x.Venue).Distinct().ToListAsync();
+        return venues.Select(x => new MatchLocationDto
+        {
+            Venue = x?.ToDto()
+        });
     }
 
     public async Task<MatchFilterOptionsDto> GetMatchFilterOptionsAsync()
@@ -188,4 +191,39 @@ public class MatchService : IMatchService
 
         return filterOptions.ToDto();
     }
+
+    public async Task<GroupedMatchesByVenueDto> GetMatchesByVenueAsync(int venueId, GetMatchesByVenueRequestDto request)
+    {
+        var query = _context.Matches
+            .Include(m => m.Venue)
+            .Include(m => m.HomeTeam)
+                .ThenInclude(t => t!.Club)
+            .Include(m => m.AwayTeam)
+                .ThenInclude(t => t!.Club)
+            .Include(m => m.Competition)
+            .Include(m => m.AgeGroup)
+            .AsQueryable();
+
+        query = query.Where(m => m.VenueId == venueId);
+
+        if (request.HasValidDateRange)
+        {
+            query = query.Where(m => m.Time.HasValue && request.MinDate!.Value.Date <= m.Time.Value.Date && m.Time.Value.Date <= request.MaxDate!.Value.Date);
+        }
+
+        if (request.Competitions != null)
+        {
+            query = query.Where(m => request.Competitions.Contains(m.CompetitionId));
+        }
+
+        if (request.AgeGroups != null)
+        {
+            query = query.Where(m => request.AgeGroups.Contains(m.AgeGroupId));
+        }
+
+        var matches = await query.Select(x => x.ToDto()).ToListAsync();
+
+        return Calcio.Api.Core.Logic.MatchGrouping.GroupByTime(matches, _dateTimeProvider.Now);
+    }
+
 }

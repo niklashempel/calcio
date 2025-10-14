@@ -39,10 +39,11 @@ export interface GetMatchesRequest {
   maxLng?: number;
 }
 
-export interface GroupedMatches {
-  venueId: number;
+export interface MatchLocationDto {
   venue?: VenueDto;
-  count: number;
+}
+
+export interface GroupedMatches {
   today: MatchDto[];
   upcoming: MatchDto[];
   past: MatchDto[];
