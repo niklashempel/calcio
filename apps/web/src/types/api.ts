@@ -37,6 +37,10 @@ export interface GetMatchesRequest {
   maxLat?: number;
   minLng?: number;
   maxLng?: number;
+  minDate?: string;
+  maxDate?: string;
+  competitions?: number[];
+  ageGroups?: number[];
 }
 
 export interface GroupedMatches {
