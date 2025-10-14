@@ -37,7 +37,7 @@ function LeafletMap({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const markerInstancesRef = useRef<Map<number, L.Marker>>(new Map());
-  const skipNextMoveEndRef = useRef(false);
+  const isPopupOpenRef = useRef(false);
 
   // Fix Leaflet default icon paths
   useEffect(() => {
@@ -94,19 +94,18 @@ function LeafletMap({
     }).addTo(map);
 
     map.on('moveend', () => {
-      if (skipNextMoveEndRef.current) {
-        skipNextMoveEndRef.current = false;
-        return;
+      if (!isPopupOpenRef.current) {
+        emitBounds();
       }
-      emitBounds();
     });
 
     map.on('popupopen', () => {
-      skipNextMoveEndRef.current = true;
+      isPopupOpenRef.current = true;
     });
 
     map.on('popupclose', () => {
-      skipNextMoveEndRef.current = false;
+      isPopupOpenRef.current = false;
+      emitBounds();
     });
 
     mapInstanceRef.current = map;
